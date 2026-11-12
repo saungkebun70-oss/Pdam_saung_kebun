@@ -10,13 +10,12 @@ import {
   FileSpreadsheet,
   MessageSquare,
   RotateCcw,
-  Home,
-  Check,
   X,
   ArrowUpDown,
   Building2,
 } from 'lucide-react';
-import { PdamRecord, StatusPemasangan, BlokPilihan } from '../types';
+import { PdamRecord, StatusPemasangan } from '../types';
+import { EditRecordModal } from './EditRecordModal';
 
 interface TabelRekapitulasiProps {
   records: PdamRecord[];
@@ -29,7 +28,7 @@ interface TabelRekapitulasiProps {
   isAdminUnlocked: boolean;
 }
 
-const BLOK_FILTER_LIST: (string)[] = [
+const BLOK_FILTER_LIST: string[] = [
   'Semua',
   'B1',
   'B2',
@@ -44,7 +43,7 @@ const BLOK_FILTER_LIST: (string)[] = [
 ];
 
 export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
-  records,
+  records = [],
   onStatusChange,
   onEditRecord,
   onRequestDelete,
@@ -58,63 +57,46 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
   const [selectedStatus, setSelectedStatus] = useState('Semua');
   const [sortBy, setSortBy] = useState<'blok' | 'nama' | 'tanggal'>('blok');
 
-  // Edit State
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editNama, setEditNama] = useState('');
-  const [editBlok, setEditBlok] = useState('');
-  const [editNomor, setEditNomor] = useState('');
-  const [editKeterangan, setEditKeterangan] = useState('');
+  // Edit Modal State
+  const [editingRecord, setEditingRecord] = useState<PdamRecord | null>(null);
 
-  const startEdit = (rec: PdamRecord) => {
-    setEditingId(rec.id);
-    setEditNama(rec.nama);
-    setEditBlok(rec.blok);
-    setEditNomor(rec.nomor);
-    setEditKeterangan(rec.keterangan || '');
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-  };
-
-  const saveEdit = async (id: string) => {
-    if (!editNama.trim() || !editBlok.trim() || !editNomor.trim()) return;
-    await onEditRecord(id, {
-      nama: editNama.trim(),
-      blok: editBlok.trim(),
-      nomor: editNomor.trim(),
-      keterangan: editKeterangan.trim(),
-    });
-    setEditingId(null);
-  };
-
-  // Filtered and Sorted Records
+  // Filtered and Sorted Records with comprehensive type safety
   const filteredRecords = useMemo(() => {
-    return records
+    const list = Array.isArray(records) ? records : [];
+
+    return list
       .filter((rec) => {
+        if (!rec) return false;
+
+        const recBlok = String(rec.blok || '').trim();
+        const recNama = String(rec.nama || '').trim();
+        const recNomor = String(rec.nomor || '').trim();
+        const recKet = String(rec.keterangan || '').trim();
+        const recStatus = String(rec.status || '');
+
         // Blok filter
         if (selectedBlok !== 'Semua') {
           if (selectedBlok === 'Lainnya') {
             const standardBloks = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'Pos Keamanan'];
-            if (standardBloks.includes(rec.blok)) return false;
-          } else if (rec.blok !== selectedBlok) {
+            if (standardBloks.includes(recBlok)) return false;
+          } else if (recBlok.toLowerCase() !== selectedBlok.toLowerCase()) {
             return false;
           }
         }
 
         // Status filter
-        if (selectedStatus !== 'Semua' && rec.status !== selectedStatus) {
+        if (selectedStatus !== 'Semua' && recStatus !== selectedStatus) {
           return false;
         }
 
         // Search term
         if (searchTerm.trim()) {
           const term = searchTerm.toLowerCase();
-          const matchNama = rec.nama.toLowerCase().includes(term);
-          const matchBlok = rec.blok.toLowerCase().includes(term);
-          const matchNomor = rec.nomor.toLowerCase().includes(term);
-          const matchKet = (rec.keterangan || '').toLowerCase().includes(term);
-          const matchGabung = `${rec.blok}${rec.nomor}`.toLowerCase().includes(term);
+          const matchNama = recNama.toLowerCase().includes(term);
+          const matchBlok = recBlok.toLowerCase().includes(term);
+          const matchNomor = recNomor.toLowerCase().includes(term);
+          const matchKet = recKet.toLowerCase().includes(term);
+          const matchGabung = `${recBlok}${recNomor}`.toLowerCase().includes(term);
           if (!matchNama && !matchBlok && !matchNomor && !matchKet && !matchGabung) {
             return false;
           }
@@ -123,43 +105,25 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
         return true;
       })
       .sort((a, b) => {
+        const namaA = String(a?.nama || '');
+        const namaB = String(b?.nama || '');
         if (sortBy === 'nama') {
-          return a.nama.localeCompare(b.nama);
+          return namaA.localeCompare(namaB);
         }
         if (sortBy === 'tanggal') {
-          return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+          return String(b?.updatedAt || '').localeCompare(String(a?.updatedAt || ''));
         }
-        // Default: Sort by Blok then Nomor
-        if (a.blok !== b.blok) return a.blok.localeCompare(b.blok, undefined, { numeric: true });
-        return a.nomor.localeCompare(b.nomor, undefined, { numeric: true });
+        // Default: Sort by Blok then Nomor safely
+        const blokA = String(a?.blok || '');
+        const blokB = String(b?.blok || '');
+        if (blokA !== blokB) {
+          return blokA.localeCompare(blokB, undefined, { numeric: true });
+        }
+        const noA = String(a?.nomor || '');
+        const noB = String(b?.nomor || '');
+        return noA.localeCompare(noB, undefined, { numeric: true });
       });
   }, [records, selectedBlok, selectedStatus, searchTerm, sortBy]);
-
-  const getStatusBadge = (status: StatusPemasangan) => {
-    switch (status) {
-      case 'Sudah Terpasang':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Sudah Terpasang</span>
-          </span>
-        );
-      case 'Dalam Proses':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-            <span>Dalam Proses</span>
-          </span>
-        );
-      case 'Belum Terpasang':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-800 border border-rose-200">
-            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-            <span>Belum Terpasang</span>
-          </span>
-        );
-    }
-  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-150 overflow-hidden">
@@ -175,7 +139,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Daftar warga real-time. Ubah status langsung dari menu pilihan tabel.
+            Daftar warga real-time. Ketuk ikon pensil untuk mengedit data warga.
           </p>
         </div>
 
@@ -183,7 +147,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onOpenExportWa}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition shadow-xs cursor-pointer"
           >
             <MessageSquare className="w-4 h-4 text-emerald-600" />
             <span>Salin Format WA (1–47)</span>
@@ -191,7 +155,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
 
           <button
             onClick={onExportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition shadow-xs cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4 text-sky-600" />
             <span>Export Excel / CSV</span>
@@ -200,7 +164,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           <button
             onClick={onRequestReset}
             title="Reset ke 4 data awal pengurus (Dilindungi PIN)"
-            className="flex items-center gap-1 px-2.5 py-2 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition"
+            className="flex items-center gap-1 px-2.5 py-2 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Reset Data</span>
@@ -224,7 +188,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -239,7 +203,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full py-2 px-3 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-cyan-500"
+              className="w-full py-2 px-3 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
             >
               <option value="Semua">Semua Status Pemasangan</option>
               <option value="Sudah Terpasang">Sudah Terpasang</option>
@@ -254,7 +218,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full py-2 px-3 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-cyan-500"
+              className="w-full py-2 px-3 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
             >
               <option value="blok">Urut: Blok &amp; No Rumah</option>
               <option value="nama">Urut: Nama Warga (A-Z)</option>
@@ -272,7 +236,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             <button
               key={blok}
               onClick={() => setSelectedBlok(blok)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition flex-shrink-0 ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition flex-shrink-0 cursor-pointer ${
                 selectedBlok === blok
                   ? 'bg-sky-700 text-white shadow-xs'
                   : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
@@ -312,14 +276,16 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredRecords.map((rec, idx) => {
-                  const isEditing = editingId === rec.id;
+                  const recordId = rec.id || `idx-${idx}`;
+                  const recBlok = String(rec.blok || '');
+                  const recNomor = String(rec.nomor || '');
+                  const recNama = String(rec.nama || '');
+                  const recKet = String(rec.keterangan || '');
 
                   return (
                     <tr
-                      key={rec.id}
-                      className={`hover:bg-sky-50/40 transition duration-150 ${
-                        isEditing ? 'bg-amber-50/60' : ''
-                      }`}
+                      key={recordId}
+                      className="hover:bg-sky-50/40 transition duration-150"
                     >
                       {/* No */}
                       <td className="py-3 px-4 text-center font-bold text-slate-400">
@@ -328,48 +294,22 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
 
                       {/* Blok & No */}
                       <td className="py-3 px-4">
-                        {isEditing ? (
-                          <div className="flex gap-1">
-                            <input
-                              type="text"
-                              value={editBlok}
-                              onChange={(e) => setEditBlok(e.target.value)}
-                              className="w-14 px-1.5 py-1 text-xs border rounded bg-white"
-                              placeholder="Blok"
-                            />
-                            <input
-                              type="text"
-                              value={editNomor}
-                              onChange={(e) => setEditNomor(e.target.value)}
-                              className="w-14 px-1.5 py-1 text-xs border rounded bg-white"
-                              placeholder="No"
-                            />
-                          </div>
-                        ) : (
-                          <span className="font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                            {rec.blok} / {rec.nomor}
-                          </span>
-                        )}
+                        <span className="font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                          {recBlok} / {recNomor}
+                        </span>
                       </td>
 
                       {/* Nama Warga */}
                       <td className="py-3 px-4">
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editNama}
-                            onChange={(e) => setEditNama(e.target.value)}
-                            className="w-full px-2 py-1 text-xs border rounded bg-white font-semibold"
-                          />
-                        ) : (
-                          <div className="font-semibold text-slate-800 text-sm">{rec.nama}</div>
-                        )}
+                        <div className="font-semibold text-slate-800 text-sm">
+                          {recNama}
+                        </div>
                       </td>
 
                       {/* Status Dropdown */}
                       <td className="py-3 px-4">
                         <select
-                          value={rec.status}
+                          value={rec.status || 'Belum Terpasang'}
                           onChange={(e) =>
                             onStatusChange(rec.id, e.target.value as StatusPemasangan)
                           }
@@ -389,58 +329,29 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
 
                       {/* Catatan */}
                       <td className="py-3 px-4">
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editKeterangan}
-                            onChange={(e) => setEditKeterangan(e.target.value)}
-                            className="w-full px-2 py-1 text-xs border rounded bg-white"
-                            placeholder="Catatan..."
-                          />
-                        ) : (
-                          <span className="text-slate-500 italic">
-                            {rec.keterangan || '-'}
-                          </span>
-                        )}
+                        <span className="text-slate-500 italic">
+                          {recKet || '-'}
+                        </span>
                       </td>
 
                       {/* Actions */}
                       <td className="py-3 px-4 text-center">
-                        {isEditing ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => saveEdit(rec.id)}
-                              className="p-1.5 text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs"
-                              title="Simpan Perubahan"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={cancelEdit}
-                              className="p-1.5 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-lg"
-                              title="Batal"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              onClick={() => startEdit(rec)}
-                              className="p-1.5 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition"
-                              title="Koreksi Nama / No Rumah"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => onRequestDelete(rec)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                              title="Hapus Data (Wajib PIN)"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setEditingRecord(rec)}
+                            className="p-1.5 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                            title="Edit Data Warga"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => onRequestDelete(rec)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            title="Hapus Data (Wajib PIN)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -452,93 +363,53 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           {/* Mobile Card List View (<md) */}
           <div className="md:hidden divide-y divide-slate-150">
             {filteredRecords.map((rec, idx) => {
-              const isEditing = editingId === rec.id;
+              const recordId = rec.id || `idx-${idx}`;
+              const recBlok = String(rec.blok || '');
+              const recNomor = String(rec.nomor || '');
+              const recNama = String(rec.nama || '');
+              const recKet = String(rec.keterangan || '');
 
               return (
-                <div key={rec.id} className="p-4 space-y-2.5">
+                <div key={recordId} className="p-4 space-y-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-slate-400 w-5">
                         #{idx + 1}
                       </span>
-                      {isEditing ? (
-                        <div className="flex gap-1">
-                          <input
-                            type="text"
-                            value={editBlok}
-                            onChange={(e) => setEditBlok(e.target.value)}
-                            className="w-14 px-1.5 py-1 text-xs border rounded bg-white"
-                            placeholder="Blok"
-                          />
-                          <input
-                            type="text"
-                            value={editNomor}
-                            onChange={(e) => setEditNomor(e.target.value)}
-                            className="w-14 px-1.5 py-1 text-xs border rounded bg-white"
-                            placeholder="No"
-                          />
-                        </div>
-                      ) : (
-                        <span className="px-2.5 py-0.5 font-bold text-xs bg-slate-100 text-slate-800 rounded-lg border border-slate-200">
-                          Blok {rec.blok} / {rec.nomor}
-                        </span>
-                      )}
+                      <span className="px-2.5 py-0.5 font-bold text-xs bg-slate-100 text-slate-800 rounded-lg border border-slate-200">
+                        Blok {recBlok} / {recNomor}
+                      </span>
                     </div>
 
-                    {/* Action buttons */}
-                    {isEditing ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => saveEdit(rec.id)}
-                          className="px-2 py-1 text-xs bg-emerald-600 text-white rounded-lg flex items-center gap-1 font-semibold"
-                        >
-                          <Check className="w-3 h-3" /> Simpan
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="px-2 py-1 text-xs bg-slate-200 text-slate-700 rounded-lg"
-                        >
-                          Batal
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => startEdit(rec)}
-                          className="p-1.5 text-slate-500 hover:text-sky-700 rounded-lg hover:bg-slate-100"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => onRequestDelete(rec)}
-                          className="p-1.5 text-rose-500 hover:text-rose-700 rounded-lg hover:bg-rose-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
+                    {/* Action buttons on mobile */}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingRecord(rec)}
+                        className="px-2.5 py-1 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg border border-sky-200 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit2 className="w-3 h-3 text-sky-600" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => onRequestDelete(rec)}
+                        className="p-1.5 text-rose-500 hover:text-rose-700 rounded-lg hover:bg-rose-50 cursor-pointer"
+                        title="Hapus Data"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Resident Name */}
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editNama}
-                      onChange={(e) => setEditNama(e.target.value)}
-                      className="w-full px-2 py-1.5 text-sm font-bold border rounded-lg bg-white"
-                      placeholder="Nama Lengkap Warga"
-                    />
-                  ) : (
-                    <div className="text-sm font-bold text-slate-900">
-                      {rec.nama}
-                    </div>
-                  )}
+                  <div className="text-sm font-bold text-slate-900">
+                    {recNama}
+                  </div>
 
                   {/* Status Change Dropdown */}
                   <div className="flex items-center justify-between gap-2 pt-1">
                     <span className="text-xs text-slate-500 font-medium">Status PDAM:</span>
                     <select
-                      value={rec.status}
+                      value={rec.status || 'Belum Terpasang'}
                       onChange={(e) =>
                         onStatusChange(rec.id, e.target.value as StatusPemasangan)
                       }
@@ -557,20 +428,10 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                   </div>
 
                   {/* Catatan if any */}
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editKeterangan}
-                      onChange={(e) => setEditKeterangan(e.target.value)}
-                      className="w-full px-2 py-1 text-xs border rounded-lg bg-white"
-                      placeholder="Catatan tambahan..."
-                    />
-                  ) : (
-                    rec.keterangan && (
-                      <div className="text-xs text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        {rec.keterangan}
-                      </div>
-                    )
+                  {recKet && (
+                    <div className="text-xs text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      {recKet}
+                    </div>
                   )}
                 </div>
               );
@@ -578,6 +439,18 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           </div>
         </>
       )}
+
+      {/* Dedicated Edit Record Modal */}
+      <EditRecordModal
+        isOpen={Boolean(editingRecord)}
+        onClose={() => setEditingRecord(null)}
+        record={editingRecord}
+        existingRecords={records}
+        onSave={async (id, updated) => {
+          await onEditRecord(id, updated);
+          setEditingRecord(null);
+        }}
+      />
     </div>
   );
 };

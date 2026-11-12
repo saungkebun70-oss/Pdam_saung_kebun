@@ -138,23 +138,27 @@ export function subscribePdamRecords(
     q,
     (snapshot) => {
       const records: PdamRecord[] = snapshot.docs.map((docSnap) => {
-        const d = docSnap.data();
+        const d = docSnap.data() || {};
         return {
           id: docSnap.id,
-          nama: d.nama || '',
-          blok: d.blok || '',
-          nomor: d.nomor || '',
+          nama: String(d.nama || '').trim(),
+          blok: String(d.blok || '').trim(),
+          nomor: String(d.nomor || '').trim(),
           status: (d.status as StatusPemasangan) || 'Belum Terpasang',
-          keterangan: d.keterangan || '',
-          createdAt: d.createdAt || '',
-          updatedAt: d.updatedAt || '',
+          keterangan: String(d.keterangan || '').trim(),
+          createdAt: String(d.createdAt || ''),
+          updatedAt: String(d.updatedAt || ''),
         };
       });
 
-      // Sort logically by Blok and Nomor
+      // Sort logically by Blok and Nomor safely
       records.sort((a, b) => {
-        if (a.blok !== b.blok) return a.blok.localeCompare(b.blok, undefined, { numeric: true });
-        return a.nomor.localeCompare(b.nomor, undefined, { numeric: true });
+        const blokA = String(a?.blok || '');
+        const blokB = String(b?.blok || '');
+        if (blokA !== blokB) return blokA.localeCompare(blokB, undefined, { numeric: true });
+        const noA = String(a?.nomor || '');
+        const noB = String(b?.nomor || '');
+        return noA.localeCompare(noB, undefined, { numeric: true });
       });
 
       onData(records);
@@ -166,8 +170,7 @@ export function subscribePdamRecords(
     },
     (err) => {
       console.error('Subscription error:', err);
-      if (onError) onError(err);
-      handleFirestoreError(err, OperationType.GET, PDAM_COLLECTION);
+      if (onError) onError(err instanceof Error ? err : new Error(String(err)));
     }
   );
 }
@@ -245,10 +248,16 @@ export async function updatePdamRecord(
   const docPath = `${PDAM_COLLECTION}/${id}`;
   try {
     const docRef = doc(db, PDAM_COLLECTION, id);
-    await updateDoc(docRef, {
-      ...data,
+    const payload: Record<string, any> = {
       updatedAt: new Date().toISOString(),
-    });
+    };
+    if (data.nama !== undefined) payload.nama = String(data.nama).trim();
+    if (data.blok !== undefined) payload.blok = String(data.blok).trim();
+    if (data.nomor !== undefined) payload.nomor = String(data.nomor).trim();
+    if (data.status !== undefined) payload.status = data.status;
+    if (data.keterangan !== undefined) payload.keterangan = String(data.keterangan).trim();
+
+    await updateDoc(docRef, payload);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, docPath);
     throw error;
