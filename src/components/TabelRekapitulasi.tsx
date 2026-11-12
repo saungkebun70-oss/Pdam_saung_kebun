@@ -1,18 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
-  Filter,
   Trash2,
   Edit2,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
   FileSpreadsheet,
   MessageSquare,
   RotateCcw,
   X,
   ArrowUpDown,
   Building2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { PdamRecord, StatusPemasangan } from '../types';
 import { EditRecordModal } from './EditRecordModal';
@@ -42,6 +42,20 @@ const BLOK_FILTER_LIST: string[] = [
   'Lainnya',
 ];
 
+// Helper to compute smart page numbers window
+function getPageNumbers(current: number, total: number): (number | string)[] {
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (current <= 3) {
+    return [1, 2, 3, 4, '...', total];
+  }
+  if (current >= total - 2) {
+    return [1, '...', total - 3, total - 2, total - 1, total];
+  }
+  return [1, '...', current - 1, current, current + 1, '...', total];
+}
+
 export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
   records = [],
   onStatusChange,
@@ -56,6 +70,10 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
   const [selectedBlok, setSelectedBlok] = useState('Semua');
   const [selectedStatus, setSelectedStatus] = useState('Semua');
   const [sortBy, setSortBy] = useState<'blok' | 'nama' | 'tanggal'>('blok');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
   // Edit Modal State
   const [editingRecord, setEditingRecord] = useState<PdamRecord | null>(null);
@@ -125,6 +143,24 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
       });
   }, [records, selectedBlok, selectedStatus, searchTerm, sortBy]);
 
+  // Pagination Calculations
+  const totalItems = filteredRecords.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+
+  // Reset to page 1 if current page exceeds total pages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+
+  const paginatedRecords = useMemo(() => {
+    return filteredRecords.slice(startIndex, endIndex);
+  }, [filteredRecords, startIndex, endIndex]);
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-150 overflow-hidden">
       {/* Header Bar */}
@@ -181,13 +217,19 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Cari nama warga, nomor rumah, atau blok..."
               className="w-full pl-9 pr-3 py-2 bg-white rounded-xl border border-slate-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-150 text-xs sm:text-sm outline-none transition"
             />
             {searchTerm && (
               <button
-                onClick={() => setSearchTerm('')}
+                onClick={() => {
+                  setSearchTerm('');
+                  setCurrentPage(1);
+                }}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -202,7 +244,10 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             </span>
             <select
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full py-2 px-3 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
             >
               <option value="Semua">Semua Status Pemasangan</option>
@@ -217,7 +262,10 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 hidden sm:inline" />
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => {
+                setSortBy(e.target.value as any);
+                setCurrentPage(1);
+              }}
               className="w-full py-2 px-3 bg-white rounded-xl border border-slate-200 text-xs font-medium text-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
             >
               <option value="blok">Urut: Blok &amp; No Rumah</option>
@@ -235,7 +283,10 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           {BLOK_FILTER_LIST.map((blok) => (
             <button
               key={blok}
-              onClick={() => setSelectedBlok(blok)}
+              onClick={() => {
+                setSelectedBlok(blok);
+                setCurrentPage(1);
+              }}
               className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition flex-shrink-0 cursor-pointer ${
                 selectedBlok === blok
                   ? 'bg-sky-700 text-white shadow-xs'
@@ -275,8 +326,9 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRecords.map((rec, idx) => {
-                  const recordId = rec.id || `idx-${idx}`;
+                {paginatedRecords.map((rec, idx) => {
+                  const rowNumber = startIndex + idx + 1;
+                  const recordId = rec.id || `idx-${rowNumber}`;
                   const recBlok = String(rec.blok || '');
                   const recNomor = String(rec.nomor || '');
                   const recNama = String(rec.nama || '');
@@ -289,7 +341,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                     >
                       {/* No */}
                       <td className="py-3 px-4 text-center font-bold text-slate-400">
-                        {idx + 1}
+                        {rowNumber}
                       </td>
 
                       {/* Blok & No */}
@@ -362,8 +414,9 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
 
           {/* Mobile Card List View (<md) */}
           <div className="md:hidden divide-y divide-slate-150">
-            {filteredRecords.map((rec, idx) => {
-              const recordId = rec.id || `idx-${idx}`;
+            {paginatedRecords.map((rec, idx) => {
+              const rowNumber = startIndex + idx + 1;
+              const recordId = rec.id || `idx-${rowNumber}`;
               const recBlok = String(rec.blok || '');
               const recNomor = String(rec.nomor || '');
               const recNama = String(rec.nama || '');
@@ -373,8 +426,8 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                 <div key={recordId} className="p-4 space-y-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-400 w-5">
-                        #{idx + 1}
+                      <span className="text-xs font-bold text-slate-400 w-6">
+                        #{rowNumber}
                       </span>
                       <span className="px-2.5 py-0.5 font-bold text-xs bg-slate-100 text-slate-800 rounded-lg border border-slate-200">
                         Blok {recBlok} / {recNomor}
@@ -436,6 +489,104 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                 </div>
               );
             })}
+          </div>
+
+          {/* Bottom Pagination Bar (Navigasi Bawah Per Halaman) */}
+          <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            {/* Left: Items per Page Selector & Info */}
+            <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+              <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                <span>Tampilkan:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="py-1 px-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
+                >
+                  <option value={5}>5 per halaman</option>
+                  <option value={10}>10 per halaman</option>
+                  <option value={15}>15 per halaman</option>
+                  <option value={25}>25 per halaman</option>
+                  <option value={50}>50 per halaman (Semua)</option>
+                </select>
+              </div>
+
+              <span className="text-slate-500 text-[11px] font-semibold">
+                {totalItems === 0 ? '0 data' : `${startIndex + 1}–${endIndex} dari ${totalItems} data`}
+              </span>
+            </div>
+
+            {/* Right: Page Navigation Buttons */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {/* First Page */}
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  title="Halaman Pertama"
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <ChevronsLeft className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Prev Page */}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  title="Halaman Sebelumnya"
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold flex items-center gap-1 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">Prev</span>
+                </button>
+
+                {/* Number Pills */}
+                <div className="flex items-center gap-1 mx-0.5">
+                  {getPageNumbers(currentPage, totalPages).map((p, i) =>
+                    p === '...' ? (
+                      <span key={`ellipsis-${i}`} className="px-1 text-slate-400 font-bold">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={`page-${p}`}
+                        onClick={() => setCurrentPage(Number(p))}
+                        className={`w-7 h-7 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          currentPage === p
+                            ? 'bg-sky-700 text-white shadow-xs'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                {/* Next Page */}
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  title="Halaman Selanjutnya"
+                  className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold flex items-center gap-1 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <span className="hidden xs:inline">Next</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  title="Halaman Terakhir"
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  <ChevronsRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
