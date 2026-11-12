@@ -302,7 +302,7 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 py-4 sm:py-6 flex-1 w-full space-y-4 pb-24 md:pb-8">
         {/* Loading Spinner on Initial Connection */}
         {isLoading ? (
-          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-150">
+          <div key="loading-view" className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-150">
             <div className="w-10 h-10 border-3 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
             <h3 className="font-bold text-slate-800 text-base">
               Menghubungkan ke Cloud Firestore...
@@ -312,7 +312,7 @@ export default function App() {
             </p>
           </div>
         ) : (
-          <>
+          <div key="loaded-view" className="space-y-4">
             {/* Top Navigation Tabs Bar (1 Halaman untuk 1 Tombol yang Dipilih) */}
             <div className="bg-white rounded-2xl p-1.5 shadow-xs border border-slate-200 flex items-center justify-between gap-1">
               <button
@@ -380,7 +380,7 @@ export default function App() {
 
             {/* HALAMAN 1: HANYA TAMPIL REKAPITULASI DATA (1 Item Per Halaman di HP) */}
             {activeTab === 'rekap' && (
-              <div className="space-y-3">
+              <div key="tab-rekap" className="space-y-3">
                 <TabelRekapitulasi
                   records={records}
                   onStatusChange={handleStatusChange}
@@ -396,7 +396,7 @@ export default function App() {
 
             {/* HALAMAN 2: HANYA TAMPIL FORMULIR PENDAFTARAN WARGA */}
             {activeTab === 'form' && (
-              <div className="max-w-xl mx-auto space-y-4">
+              <div key="tab-form" className="max-w-xl mx-auto space-y-4">
                 <FormInputWarga
                   existingRecords={records}
                   onSubmit={async (data) => {
@@ -410,7 +410,7 @@ export default function App() {
                 <div className="bg-gradient-to-br from-sky-50 to-cyan-50 border border-sky-150 rounded-2xl p-4 text-xs text-sky-900 space-y-1.5 shadow-xs">
                   <div className="font-bold flex items-center gap-1.5 text-sky-800">
                     <Sparkles className="w-4 h-4 text-sky-600" />
-                    Informasi Pemasangan PDAM
+                    <span>Informasi Pemasangan PDAM</span>
                   </div>
                   <p className="leading-relaxed text-sky-950">
                     Setiap warga yang telah melakukan pendaftaran atau telah dipasang meteran air dapat mengisi formulir di atas. Data akan langsung terupdate ke rekapitulasi pengurus secara otomatis.
@@ -421,7 +421,7 @@ export default function App() {
 
             {/* HALAMAN 3: HANYA TAMPIL PROGRESS BAR & TARGET 47 UNIT */}
             {activeTab === 'progress' && (
-              <div className="max-w-3xl mx-auto space-y-4">
+              <div key="tab-progress" className="max-w-3xl mx-auto space-y-4">
                 <ProgressBar records={records} />
 
                 {/* Tombol Pintas ke Halaman Lain */}
@@ -448,7 +448,7 @@ export default function App() {
 
             {/* HALAMAN 4: SEMUA BAGIAN (UNTUK MODE LAYAR LEBAR / DESKTOP JIKA DIINGINKAN) */}
             {activeTab === 'all' && (
-              <div className="space-y-6">
+              <div key="tab-all" className="space-y-6">
                 <ProgressBar records={records} />
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                   <div className="lg:col-span-5 space-y-4">
@@ -472,7 +472,7 @@ export default function App() {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
       </main>
 

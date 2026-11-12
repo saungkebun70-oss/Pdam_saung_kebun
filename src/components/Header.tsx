@@ -87,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Mode Pengurus Toggle */}
             {isAdminUnlocked ? (
-              <div className="flex items-center gap-1.5 bg-emerald-500/25 border border-emerald-400/40 rounded-xl p-1 pl-2.5">
+              <div key="admin-unlocked" className="flex items-center gap-1.5 bg-emerald-500/25 border border-emerald-400/40 rounded-xl p-1 pl-2.5">
                 <div className="flex items-center gap-1 text-emerald-200 text-xs font-semibold">
                   <ShieldCheck className="w-4 h-4 text-emerald-300" />
                   <span className="hidden xs:inline">Pengurus</span>
@@ -102,6 +102,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             ) : (
               <button
+                key="admin-locked"
                 onClick={onOpenPinModal}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-white bg-amber-500/90 hover:bg-amber-500 rounded-xl shadow-sm transition border border-amber-400/50 cursor-pointer"
               >

@@ -70,8 +70,9 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
     // 2. Duplicate Validation (Case-insensitive & clean spaces)
     const duplicate = existingRecords.find(
       (r) =>
-        r.blok.trim().toLowerCase() === finalBlok.toLowerCase() &&
-        r.nomor.trim().toLowerCase() === trimmedNomor.toLowerCase()
+        r &&
+        String(r.blok || '').trim().toLowerCase() === finalBlok.toLowerCase() &&
+        String(r.nomor || '').trim().toLowerCase() === trimmedNomor.toLowerCase()
     );
 
     if (duplicate) {
