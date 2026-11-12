@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for validating PDAM record
+    function isValidRecord(data) {
+      return data.nama is string && data.nama.size() >= 1 && data.nama.size() <= 100 &&
+             data.blok is string && data.blok.size() >= 1 && data.blok.size() <= 30 &&
+             data.nomor is string && data.nomor.size() >= 1 && data.nomor.size() <= 20 &&
+             data.status in ['Sudah Terpasang', 'Dalam Proses', 'Belum Terpasang'];
+    }
+
+    // Helper for Admin Settings
+    function isValidAdminSettings(data) {
+      return data.pin is string && data.pin.size() == 6 && data.pin.matches('^[0-9]{6}$');
+    }
+
+    // Koleksi PDAM Saung Kebun
+    match /pdam_saung_kebun/{recordId} {
+      allow read: if true;
+      allow create: if isValidRecord(request.resource.data);
+      allow update: if isValidRecord(request.resource.data);
+      allow delete: if true;
+    }
+
+    // Pengaturan Admin (PIN)
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isValidAdminSettings(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Default deny all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

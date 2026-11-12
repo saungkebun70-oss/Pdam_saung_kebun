@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "PdamRecord": {
+      "title": "PdamRecord",
+      "description": "Data pemasangan meteran PDAM warga Saung Kebun",
+      "type": "object",
+      "properties": {
+        "nama": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "blok": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "nomor": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Sudah Terpasang", "Dalam Proses", "Belum Terpasang"]
+        },
+        "keterangan": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["nama", "blok", "nomor", "status"]
+    },
+    "AdminSettings": {
+      "title": "AdminSettings",
+      "description": "Pengaturan PIN Pengurus Saung Kebun",
+      "type": "object",
+      "properties": {
+        "pin": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 6,
+          "pattern": "^[0-9]{6}$"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["pin"]
+    }
+  },
+  "firestore": {
+    "/pdam_saung_kebun/{recordId}": {
+      "schema": "PdamRecord",
+      "description": "Koleksi data meteran PDAM warga Saung Kebun"
+    },
+    "/settings/{settingId}": {
+      "schema": "AdminSettings",
+      "description": "Pengaturan pengurus dan konfigurasi PIN"
+    }
+  }
+}
