@@ -76,9 +76,14 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
   const [selectedStatus, setSelectedStatus] = useState('Semua');
   const [sortBy, setSortBy] = useState<'blok' | 'nama' | 'tanggal'>('blok');
 
-  // Pagination State (Default 1 item per halaman for mobile/tablet friendly experience or customizable)
+  // Pagination State (Default 1 item per halaman for mobile/tablet friendly experience)
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return 1; // Default 1 item per halaman di mobile
+    }
+    return 10;
+  });
 
   // Edit Modal State
   const [editingRecord, setEditingRecord] = useState<PdamRecord | null>(null);
@@ -88,6 +93,18 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
+    if (tableTopRef.current) {
+      tableTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  // Khusus ketika item dipilih di navigasi bawah pada tampilan mobile / tablet:
+  // Otomatis aktifkan mode 1 item per halaman dan tampilkan item yang dipilih
+  const handleSelectBottomItem = (itemNumber: number) => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      setItemsPerPage(1);
+    }
+    setCurrentPage(itemNumber);
     if (tableTopRef.current) {
       tableTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -665,65 +682,113 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             )}
           </div>
 
-          {/* Bottom Pagination Bar (Navigasi Bawah Per Halaman / Item) */}
-          <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            {/* Left: Items per Page Selector & Info */}
-            <div className="flex items-center justify-between w-full sm:w-auto gap-3">
-              <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-                <span>Tampilkan:</span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="py-1 px-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
-                >
-                  <option value={1}>1 item / halaman (Khusus HP/Tablet)</option>
-                  <option value={5}>5 per halaman</option>
-                  <option value={10}>10 per halaman</option>
-                  <option value={15}>15 per halaman</option>
-                  <option value={25}>25 per halaman</option>
-                  <option value={50}>Semua (50)</option>
-                </select>
+          {/* Bilah Tombol Navigasi Bawah (Per Halaman / Per Item) */}
+          <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-150 space-y-3">
+            {/* Navigasi Cepat Item Khusus Mobile & Tablet */}
+            <div className="md:hidden space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                  <Square className="w-3.5 h-3.5 text-sky-600" />
+                  Tombol Navigasi Item (Tampil 1 per Halaman):
+                </span>
+                <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                  {itemsPerPage === 1 ? `Rumah #${currentPage}` : `${totalItems} Total`}
+                </span>
               </div>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-0.5">
+                {filteredRecords.map((item, idx) => {
+                  const itemNum = idx + 1;
+                  const isCurrent = itemsPerPage === 1 && currentPage === itemNum;
+                  const itemBlok = String(item.blok || '');
+                  const itemNomor = String(item.nomor || '');
+                  const itemNama = String(item.nama || '');
 
-              <span className="text-slate-500 text-[11px] font-semibold">
-                {totalItems === 0
-                  ? '0 data'
-                  : itemsPerPage === 1
-                  ? `Rumah ke-${currentPage} dari ${totalItems}`
-                  : `${startIndex + 1}–${endIndex} dari ${totalItems} data`}
-              </span>
+                  return (
+                    <button
+                      key={item.id || `item-nav-${itemNum}`}
+                      type="button"
+                      onClick={() => handleSelectBottomItem(itemNum)}
+                      className={`flex-shrink-0 px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                        isCurrent
+                          ? 'bg-sky-700 text-white shadow-sm ring-2 ring-sky-300'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                        isCurrent ? 'bg-white text-sky-800' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {itemNum}
+                      </span>
+                      <span>
+                        {itemBlok}/{itemNomor} - {itemNama.slice(0, 8)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Right: Page Navigation Buttons with Smooth Scroll */}
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1 w-full sm:w-auto justify-center sm:justify-end">
-                {/* First Page */}
+            {/* Row Tombol Navigasi Bawah Standar & Info */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              {/* Left: Items per Page Selector & Info */}
+              <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+                <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                  <span>Tampilkan:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="py-1 px-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
+                  >
+                    <option value={1}>1 item / halaman (Khusus HP/Tablet)</option>
+                    <option value={5}>5 per halaman</option>
+                    <option value={10}>10 per halaman</option>
+                    <option value={15}>15 per halaman</option>
+                    <option value={25}>25 per halaman</option>
+                    <option value={50}>Semua (50)</option>
+                  </select>
+                </div>
+
+                <span className="text-slate-500 text-[11px] font-semibold">
+                  {totalItems === 0
+                    ? '0 data'
+                    : itemsPerPage === 1
+                    ? `Rumah ke-${currentPage} dari ${totalItems}`
+                    : `${startIndex + 1}–${endIndex} dari ${totalItems} data`}
+                </span>
+              </div>
+
+              {/* Right: Tombol Navigasi Bawah Lengkap (Awal, Prev, Angka Item, Next, Akhir) */}
+              <div className="flex items-center gap-1.5 w-full sm:w-auto justify-center sm:justify-end">
+                {/* First Page / Item */}
                 <button
+                  type="button"
                   onClick={() => handlePageChange(1)}
                   disabled={currentPage === 1}
-                  title="Halaman Pertama"
-                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  title="Halaman / Item Pertama"
+                  className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs font-bold text-xs flex items-center gap-0.5"
                 >
-                  <ChevronsLeft className="w-3.5 h-3.5" />
+                  <ChevronsLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Awal</span>
                 </button>
 
-                {/* Prev Page */}
+                {/* Prev Page / Item */}
                 <button
+                  type="button"
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                   title="Halaman / Item Sebelumnya"
-                  className="px-2 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold flex items-center gap-0.5 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 font-bold flex items-center gap-1 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">Prev</span>
+                  <ChevronLeft className="w-4 h-4 text-sky-700" />
+                  <span className="text-xs">Prev</span>
                 </button>
 
-                {/* Number Pills (Horizontally scrollable on mobile so any page/item can be directly tapped!) */}
-                <div className="flex items-center gap-1 mx-0.5 max-w-[160px] xs:max-w-[220px] sm:max-w-none overflow-x-auto no-scrollbar py-0.5">
-                  {getPageNumbers(currentPage, totalPages).map((p, i) =>
+                {/* Number Pills: ketika diklik di mobile/tablet otomatis tampil 1 item per halaman */}
+                <div className="flex items-center gap-1 mx-0.5 max-w-[190px] xs:max-w-[260px] sm:max-w-none overflow-x-auto no-scrollbar py-0.5">
+                  {getPageNumbers(currentPage, Math.max(1, totalPages)).map((p, i) =>
                     p === '...' ? (
                       <span key={`ellipsis-${i}`} className="px-1 text-slate-400 font-bold select-none">
                         ...
@@ -731,10 +796,12 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                     ) : (
                       <button
                         key={`page-${p}`}
-                        onClick={() => handlePageChange(Number(p))}
-                        className={`min-w-[28px] h-7 px-1.5 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer ${
+                        type="button"
+                        onClick={() => handleSelectBottomItem(Number(p))}
+                        title={`Tampilkan Item / Halaman ${p}`}
+                        className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-bold transition flex-shrink-0 cursor-pointer shadow-2xs ${
                           currentPage === p
-                            ? 'bg-sky-700 text-white shadow-xs'
+                            ? 'bg-sky-700 text-white shadow-xs scale-105'
                             : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
                         }`}
                       >
@@ -744,28 +811,31 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                   )}
                 </div>
 
-                {/* Next Page */}
+                {/* Next Page / Item */}
                 <button
+                  type="button"
                   onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || totalPages <= 1}
                   title="Halaman / Item Selanjutnya"
-                  className="px-2 py-1 rounded-lg border border-slate-200 bg-white text-slate-700 font-semibold flex items-center gap-0.5 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-800 font-bold flex items-center gap-1 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
                 >
-                  <span className="text-[11px]">Next</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <span className="text-xs">Next</span>
+                  <ChevronRight className="w-4 h-4 text-sky-700" />
                 </button>
 
-                {/* Last Page */}
+                {/* Last Page / Item */}
                 <button
+                  type="button"
                   onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
-                  title="Halaman Terakhir"
-                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                  disabled={currentPage === totalPages || totalPages <= 1}
+                  title="Halaman / Item Terakhir"
+                  className="px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs font-bold text-xs flex items-center gap-0.5"
                 >
-                  <ChevronsRight className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Akhir</span>
+                  <ChevronsRight className="w-4 h-4" />
                 </button>
               </div>
-            )}
+            </div>
           </div>
         </>
       )}

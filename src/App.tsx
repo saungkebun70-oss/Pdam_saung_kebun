@@ -24,8 +24,18 @@ import { PinModal } from './components/PinModal';
 import { ExportWaModal } from './components/ExportWaModal';
 import { PengaturanModal } from './components/PengaturanModal';
 import { ShareWaModal } from './components/ShareWaModal';
+import { MobileBottomNav, AppPageTab } from './components/MobileBottomNav';
 import { exportToCsv } from './utils/exportCsv';
-import { CheckCircle2, AlertCircle, Info, Sparkles } from 'lucide-react';
+import {
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  Sparkles,
+  ClipboardList,
+  UserPlus,
+  BarChart3,
+  Layers,
+} from 'lucide-react';
 
 export default function App() {
   const [records, setRecords] = useState<PdamRecord[]>([]);
@@ -33,6 +43,7 @@ export default function App() {
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState<AppPageTab>('rekap');
 
   // Modals state
   const [pinModalConfig, setPinModalConfig] = useState<{
@@ -243,11 +254,17 @@ export default function App() {
     showToast('success', 'File Excel/CSV berhasil diunduh!');
   };
 
+  // 11. Tab Switcher (1 Halaman 1 Tombol Yang Dipilih - Tanpa Perlu Geser Kebawah)
+  const handleSelectTab = (tab: AppPageTab) => {
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-cyan-200">
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-5 right-5 z-50 animate-in slide-in-from-bottom duration-300 max-w-sm">
+        <div className="fixed bottom-20 md:bottom-5 right-5 z-50 animate-in slide-in-from-bottom duration-300 max-w-sm">
           <div
             className={`p-3.5 rounded-2xl shadow-xl border flex items-start gap-2.5 text-xs sm:text-sm font-medium ${
               toast.type === 'success'
@@ -281,8 +298,8 @@ export default function App() {
         recordsCount={records.length}
       />
 
-      {/* Main Body */}
-      <main className="max-w-6xl mx-auto px-4 py-5 sm:py-6 flex-1 w-full space-y-6">
+      {/* Main Body with bottom padding for mobile sticky nav */}
+      <main className="max-w-6xl mx-auto px-4 py-4 sm:py-6 flex-1 w-full space-y-4 pb-24 md:pb-8">
         {/* Loading Spinner on Initial Connection */}
         {isLoading ? (
           <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-150">
@@ -296,16 +313,97 @@ export default function App() {
           </div>
         ) : (
           <>
-            {/* Real-time Progress Bar & Target Breakdown */}
-            <ProgressBar records={records} />
+            {/* Top Navigation Tabs Bar (1 Halaman untuk 1 Tombol yang Dipilih) */}
+            <div className="bg-white rounded-2xl p-1.5 shadow-xs border border-slate-200 flex items-center justify-between gap-1">
+              <button
+                type="button"
+                onClick={() => handleSelectTab('rekap')}
+                className={`flex-1 py-2 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeTab === 'rekap'
+                    ? 'bg-sky-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span className="whitespace-nowrap">Rekap Data</span>
+                {records.length > 0 && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                      activeTab === 'rekap' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    {records.length}
+                  </span>
+                )}
+              </button>
 
-            {/* Two Column Grid for Desktop / Stacked for Mobile */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Form Input Warga (4 cols on lg) */}
-              <div className="lg:col-span-5 space-y-4">
+              <button
+                type="button"
+                onClick={() => handleSelectTab('form')}
+                className={`flex-1 py-2 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeTab === 'form'
+                    ? 'bg-sky-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <UserPlus className="w-4 h-4" />
+                <span className="whitespace-nowrap">Isi Data Warga</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectTab('progress')}
+                className={`flex-1 py-2 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  activeTab === 'progress'
+                    ? 'bg-sky-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span className="whitespace-nowrap">Progress 47</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectTab('all')}
+                title="Tampilkan Semua Bagian Sekaligus"
+                className={`hidden md:flex py-2 px-3 rounded-xl text-xs font-bold transition items-center justify-center gap-1.5 cursor-pointer ${
+                  activeTab === 'all'
+                    ? 'bg-sky-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                <span>Semua</span>
+              </button>
+            </div>
+
+            {/* HALAMAN 1: HANYA TAMPIL REKAPITULASI DATA (1 Item Per Halaman di HP) */}
+            {activeTab === 'rekap' && (
+              <div className="space-y-3">
+                <TabelRekapitulasi
+                  records={records}
+                  onStatusChange={handleStatusChange}
+                  onEditRecord={handleEditRecord}
+                  onRequestDelete={handleRequestDelete}
+                  onRequestReset={handleRequestReset}
+                  onOpenExportWa={() => setIsExportWaOpen(true)}
+                  onExportCsv={handleExportCsv}
+                  isAdminUnlocked={isAdminUnlocked}
+                />
+              </div>
+            )}
+
+            {/* HALAMAN 2: HANYA TAMPIL FORMULIR PENDAFTARAN WARGA */}
+            {activeTab === 'form' && (
+              <div className="max-w-xl mx-auto space-y-4">
                 <FormInputWarga
                   existingRecords={records}
-                  onSubmit={handleSubmitNewRecord}
+                  onSubmit={async (data) => {
+                    await handleSubmitNewRecord(data);
+                    // Setelah input berhasil, otomatis pindahkan ke halaman rekapitulasi data
+                    setActiveTab('rekap');
+                  }}
                 />
 
                 {/* Helpful info card */}
@@ -319,21 +417,61 @@ export default function App() {
                   </p>
                 </div>
               </div>
+            )}
 
-              {/* Tabel Rekapitulasi Real-time (7 cols on lg) */}
-              <div className="lg:col-span-7">
-                <TabelRekapitulasi
-                  records={records}
-                  onStatusChange={handleStatusChange}
-                  onEditRecord={handleEditRecord}
-                  onRequestDelete={handleRequestDelete}
-                  onRequestReset={handleRequestReset}
-                  onOpenExportWa={() => setIsExportWaOpen(true)}
-                  onExportCsv={handleExportCsv}
-                  isAdminUnlocked={isAdminUnlocked}
-                />
+            {/* HALAMAN 3: HANYA TAMPIL PROGRESS BAR & TARGET 47 UNIT */}
+            {activeTab === 'progress' && (
+              <div className="max-w-3xl mx-auto space-y-4">
+                <ProgressBar records={records} />
+
+                {/* Tombol Pintas ke Halaman Lain */}
+                <div className="flex items-center justify-center gap-2.5 pt-1 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTab('rekap')}
+                    className="px-4 py-2.5 bg-sky-700 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-sky-800 transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    <span>Lihat Rekapitulasi Data Warga</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectTab('form')}
+                    className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold shadow-xs hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Daftarkan Pemasangan Baru</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* HALAMAN 4: SEMUA BAGIAN (UNTUK MODE LAYAR LEBAR / DESKTOP JIKA DIINGINKAN) */}
+            {activeTab === 'all' && (
+              <div className="space-y-6">
+                <ProgressBar records={records} />
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  <div className="lg:col-span-5 space-y-4">
+                    <FormInputWarga
+                      existingRecords={records}
+                      onSubmit={handleSubmitNewRecord}
+                    />
+                  </div>
+                  <div className="lg:col-span-7">
+                    <TabelRekapitulasi
+                      records={records}
+                      onStatusChange={handleStatusChange}
+                      onEditRecord={handleEditRecord}
+                      onRequestDelete={handleRequestDelete}
+                      onRequestReset={handleRequestReset}
+                      onOpenExportWa={() => setIsExportWaOpen(true)}
+                      onExportCsv={handleExportCsv}
+                      isAdminUnlocked={isAdminUnlocked}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
@@ -353,6 +491,15 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Bilah Navigasi Bawah Khusus Mobile / HP */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onSelectTab={handleSelectTab}
+        onOpenShareWa={() => setIsShareWaOpen(true)}
+        onOpenPengaturan={handleOpenPengaturan}
+        recordsCount={records.length}
+      />
 
       {/* Modals */}
       <PinModal
