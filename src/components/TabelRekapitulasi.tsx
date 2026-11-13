@@ -365,7 +365,11 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           </span>
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
             <Clock className="w-3.5 h-3.5 text-amber-600" />
-            <span>Belum / Proses: {filteredRecords.filter((r) => r.status !== 'Sudah Terpasang').length}</span>
+            <span>Dalam Proses: {filteredRecords.filter((r) => r.status === 'Dalam Proses').length}</span>
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 border border-rose-300">
+            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+            <span>Belum Terpasang: {filteredRecords.filter((r) => r.status === 'Belum Terpasang').length}</span>
           </span>
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-200">
             <Camera className="w-3.5 h-3.5 text-sky-600" />
@@ -448,17 +452,28 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                   const recNama = String(rec.nama || '');
                   const recKet = String(rec.keterangan || '');
                   const isInstalled = rec.status === 'Sudah Terpasang';
+                  const isBelum = rec.status === 'Belum Terpasang';
 
                   return (
                     <tr
                       key={recordId}
-                      className={`transition duration-150 ${
-                        isInstalled ? 'bg-emerald-50/30 hover:bg-emerald-50/60' : 'hover:bg-sky-50/40'
+                      className={`transition duration-150 border-l-4 ${
+                        isBelum
+                          ? 'bg-rose-50/90 hover:bg-rose-100/80 border-l-rose-500'
+                          : isInstalled
+                          ? 'bg-emerald-50/30 hover:bg-emerald-50/60 border-l-emerald-500'
+                          : 'bg-amber-50/20 hover:bg-amber-50/50 border-l-amber-400'
                       }`}
                     >
                       {/* No */}
-                      <td className="py-3 px-4 text-center font-bold text-slate-400">
-                        {rowNumber}
+                      <td className="py-3 px-4 text-center font-bold">
+                        <span
+                          className={`inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-md ${
+                            isBelum ? 'bg-rose-200/80 text-rose-900' : 'text-slate-400'
+                          }`}
+                        >
+                          {rowNumber}
+                        </span>
                       </td>
 
                       {/* 1-Tap Checklist */}
@@ -593,11 +608,19 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                   const recNomor = String(rec.nomor || '');
                   const recNama = String(rec.nama || '');
                   const recKet = String(rec.keterangan || '');
+                  const isInstalled = rec.status === 'Sudah Terpasang';
+                  const isBelum = rec.status === 'Belum Terpasang';
 
                   return (
                     <div
                       key={recordId}
-                      className="bg-gradient-to-br from-white to-slate-50 rounded-2xl border-2 border-sky-600/30 p-5 shadow-md space-y-4"
+                      className={`rounded-2xl border-2 p-5 shadow-md space-y-4 transition ${
+                        isBelum
+                          ? 'bg-gradient-to-br from-rose-50 via-rose-50/40 to-white border-rose-500 ring-2 ring-rose-100'
+                          : isInstalled
+                          ? 'bg-gradient-to-br from-emerald-50/40 to-white border-emerald-400/70'
+                          : 'bg-gradient-to-br from-white to-amber-50/40 border-amber-400/70'
+                      }`}
                     >
                       {/* Top Header Card */}
                       <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
@@ -747,23 +770,37 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                   const recNama = String(rec.nama || '');
                   const recKet = String(rec.keterangan || '');
                   const isInstalled = rec.status === 'Sudah Terpasang';
+                  const isBelum = rec.status === 'Belum Terpasang';
 
                   return (
                     <div
                       key={recordId}
-                      className={`p-3.5 space-y-2.5 transition ${
-                        isInstalled ? 'bg-emerald-50/35' : 'bg-white'
+                      className={`p-3.5 space-y-2.5 transition border-l-4 ${
+                        isBelum
+                          ? 'bg-rose-50/90 border-l-rose-500'
+                          : isInstalled
+                          ? 'bg-emerald-50/35 border-l-emerald-500'
+                          : 'bg-white border-l-amber-400'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[11px] font-bold text-slate-400">
+                            <span
+                              className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
+                                isBelum ? 'bg-rose-200/80 text-rose-900' : 'text-slate-400'
+                              }`}
+                            >
                               #{rowNumber}
                             </span>
                             <span className="px-2 py-0.5 font-extrabold text-[11px] bg-slate-900 text-white rounded-md">
                               Blok {recBlok} / {recNomor}
                             </span>
+                            {isBelum && (
+                              <span className="px-2 py-0.5 font-extrabold text-[10px] bg-rose-600 text-white rounded-md shadow-2xs">
+                                BELUM TERPASANG
+                              </span>
+                            )}
                             {recKet && (
                               <span className="px-2 py-0.5 font-bold text-[10px] bg-emerald-100 text-emerald-800 rounded-md border border-emerald-200">
                                 {recKet}
