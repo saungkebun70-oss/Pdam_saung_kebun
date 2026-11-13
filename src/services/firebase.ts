@@ -108,30 +108,14 @@ export async function checkAndSeedInitialData(): Promise<void> {
       currentDataVersion = typeof adminData.dataVersion === 'number' ? adminData.dataVersion : 0;
     }
 
-    // 2. Check PDAM records & migrate once to MASTER_DATA_VERSION (46 warga LUNAS)
+    // 2. Check PDAM records & sync missing master records cleanly without overwriting user edits
     const pdamCol = collection(db, PDAM_COLLECTION);
     const snap = await getDocs(pdamCol);
-    if (snap.empty || currentDataVersion !== MASTER_DATA_VERSION) {
-      console.log('Syncing pdam_saung_kebun with 46 master records...');
-
-      // Preserve any already-uploaded proof photos matching blok + nomor
-      const photoMap = new Map<string, string>();
-      snap.docs.forEach((d) => {
-        const data = d.data() || {};
-        if (typeof data.fotoBukti === 'string' && data.fotoBukti.length > 0) {
-          const key = `${String(data.blok || '').trim().toLowerCase()}__${String(data.nomor || '').trim().toLowerCase()}`;
-          photoMap.set(key, data.fotoBukti);
-        }
-      });
-
+    if (snap.empty) {
+      console.log('Syncing empty pdam_saung_kebun with 46 master records...');
       const batch = writeBatch(db);
 
-      snap.docs.forEach((d) => {
-        batch.delete(d.ref);
-      });
-
       INITIAL_RECORDS.forEach((rec) => {
-        const key = `${rec.blok.trim().toLowerCase()}__${rec.nomor.trim().toLowerCase()}`;
         const newDocRef = doc(pdamCol);
         batch.set(newDocRef, {
           nama: rec.nama,
@@ -139,7 +123,7 @@ export async function checkAndSeedInitialData(): Promise<void> {
           nomor: rec.nomor,
           status: rec.status,
           keterangan: rec.keterangan || 'LUNAS',
-          fotoBukti: photoMap.get(key) || '',
+          fotoBukti: '',
           createdAt: now,
           updatedAt: now,
         });
@@ -156,7 +140,55 @@ export async function checkAndSeedInitialData(): Promise<void> {
       );
 
       await batch.commit();
-      console.log('Successfully synced 46 master PDAM records.');
+      console.log('Successfully seeded 46 master PDAM records.');
+    } else if (currentDataVersion < MASTER_DATA_VERSION) {
+      // Non-destructive sync: keep existing records (statuses & photos) and insert any missing master records
+      const normalizeKey = (blokVal: string, nomorVal: string) => {
+        const b = String(blokVal || '').trim().toUpperCase();
+        const rawNo = String(nomorVal || '').trim();
+        const num = /^\d+$/.test(rawNo) ? String(parseInt(rawNo, 10)) : rawNo.toLowerCase();
+        return `${b}__${num}`;
+      };
+
+      const existingKeys = new Set<string>();
+      snap.docs.forEach((d) => {
+        const data = d.data() || {};
+        existingKeys.add(normalizeKey(String(data.blok || ''), String(data.nomor || '')));
+      });
+
+      const batch = writeBatch(db);
+      let addedCount = 0;
+
+      INITIAL_RECORDS.forEach((rec) => {
+        const key = normalizeKey(rec.blok, rec.nomor);
+        if (!existingKeys.has(key)) {
+          const newDocRef = doc(pdamCol);
+          batch.set(newDocRef, {
+            nama: rec.nama,
+            blok: rec.blok,
+            nomor: rec.nomor,
+            status: rec.status,
+            keterangan: rec.keterangan || 'LUNAS',
+            fotoBukti: '',
+            createdAt: now,
+            updatedAt: now,
+          });
+          addedCount += 1;
+        }
+      });
+
+      batch.set(
+        adminRef,
+        {
+          pin: existingPin,
+          dataVersion: MASTER_DATA_VERSION,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+
+      await batch.commit();
+      console.log(`Synced missing master records: added ${addedCount} record(s).`);
     }
   } catch (error) {
     console.warn('Could not auto-seed data (likely offline or rules):', error);

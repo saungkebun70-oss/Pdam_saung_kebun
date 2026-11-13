@@ -32,7 +32,7 @@ export interface AdminSettings {
 }
 
 export const TARGET_TOTAL_UNIT = 47;
-export const MASTER_DATA_VERSION = 2;
+export const MASTER_DATA_VERSION = 3;
 
 export const INITIAL_RECORDS: Omit<PdamRecord, 'id'>[] = [
   // Blok B3 (12)
