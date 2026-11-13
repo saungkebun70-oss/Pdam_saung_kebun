@@ -2,14 +2,16 @@
  * Kompres foto bukti pemasangan meteran PDAM di sisi klien (browser)
  * agar ukuran file selalu kecil (< 185 KB) dan cepat dimuat di HP maupun Cloud Firestore.
  */
-function encodeCanvasWithinBudget(
-  drawSource: CanvasImageSource,
-  srcWidth: number,
-  srcHeight: number
+
+export function compressSourceToProof(
+  source: CanvasImageSource,
+  naturalWidth: number,
+  naturalHeight: number,
+  mirrorHorizontal = false
 ): { dataUrl: string; sizeKb: number } {
   const renderCompressed = (maxDim: number, quality: number): string => {
-    let width = srcWidth;
-    let height = srcHeight;
+    let width = naturalWidth;
+    let height = naturalHeight;
 
     if (width > maxDim || height > maxDim) {
       if (width >= height) {
@@ -31,13 +33,22 @@ function encodeCanvasWithinBudget(
 
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(drawSource, 0, 0, canvas.width, canvas.height);
+
+    if (mirrorHorizontal) {
+      ctx.save();
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+    } else {
+      ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+    }
 
     return canvas.toDataURL('image/jpeg', quality);
   };
 
   const attempts: Array<[number, number]> = [
-    [760, 0.7],
+    [760, 0.72],
     [640, 0.6],
     [540, 0.5],
     [440, 0.42],
@@ -76,7 +87,7 @@ export async function compressProofImage(
       el.src = imageUrl;
     });
 
-    return encodeCanvasWithinBudget(
+    return compressSourceToProof(
       img,
       img.naturalWidth || img.width,
       img.naturalHeight || img.height
@@ -84,12 +95,4 @@ export async function compressProofImage(
   } finally {
     URL.revokeObjectURL(imageUrl);
   }
-}
-
-export function compressVideoFrame(
-  video: HTMLVideoElement
-): { dataUrl: string; sizeKb: number } {
-  const width = video.videoWidth || 640;
-  const height = video.videoHeight || 480;
-  return encodeCanvasWithinBudget(video, width, height);
 }
