@@ -1,6 +1,6 @@
 {
   "name": "PDAM Saung Kebun",
   "description": "Aplikasi pendataan pemasangan meteran PDAM Perumahan Saung Kebun secara real-time dan terpusat.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

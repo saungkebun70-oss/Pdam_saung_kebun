@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { UserPlus, CheckCircle2, Clock, AlertTriangle, AlertCircle, Sparkles, Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { BlokPilihan, StatusPemasangan, PdamRecord } from '../types';
 import { compressProofImage } from '../utils/imageCompress';
+import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface FormInputWargaProps {
   existingRecords: PdamRecord[];
@@ -41,11 +42,11 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
   const [fotoBukti, setFotoBukti] = useState('');
   const [fotoSizeKb, setFotoSizeKb] = useState<number | null>(null);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const selectedBlokName = blok === 'Lainnya' ? customBlok.trim() || 'Lainnya' : blok;
@@ -357,14 +358,6 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
           </div>
 
           <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handlePhotoSelect}
-            className="hidden"
-          />
-          <input
             ref={galleryInputRef}
             type="file"
             accept="image/*"
@@ -392,7 +385,7 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => setIsCameraOpen(true)}
                   className="flex-1 py-2 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"
                 >
                   <Camera className="w-3.5 h-3.5 text-sky-600" />
@@ -415,7 +408,7 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => cameraInputRef.current?.click()}
+                onClick={() => setIsCameraOpen(true)}
                 className="py-2.5 px-3 bg-white hover:bg-sky-50 border border-sky-300 text-sky-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
               >
                 <Camera className="w-4 h-4 text-sky-600" />
@@ -466,6 +459,16 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
           )}
         </button>
       </form>
+
+      <CameraCaptureModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        title={`Foto Meteran Blok ${selectedBlokName} No. ${nomor || '-'}`}
+        onCapture={({ dataUrl, sizeKb }) => {
+          setFotoBukti(dataUrl);
+          setFotoSizeKb(sizeKb);
+        }}
+      />
     </div>
   );
 };

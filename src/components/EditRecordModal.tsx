@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Edit2, X, CheckCircle2, Clock, AlertCircle, AlertTriangle, Check, Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { PdamRecord, StatusPemasangan, BlokPilihan } from '../types';
 import { compressProofImage } from '../utils/imageCompress';
+import { CameraCaptureModal } from './CameraCaptureModal';
 
 interface EditRecordModalProps {
   isOpen: boolean;
@@ -46,10 +47,10 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
   const [keterangan, setKeterangan] = useState('');
   const [fotoBukti, setFotoBukti] = useState('');
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -334,14 +335,6 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
             </div>
 
             <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handlePhotoSelect}
-              className="hidden"
-            />
-            <input
               ref={galleryInputRef}
               type="file"
               accept="image/*"
@@ -369,7 +362,7 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={() => setIsCameraOpen(true)}
                     className="flex-1 py-1.5 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Camera className="w-3.5 h-3.5 text-sky-600" />
@@ -396,7 +389,7 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={() => setIsCameraOpen(true)}
                   className="py-2 px-2.5 bg-white hover:bg-sky-50 border border-sky-300 text-sky-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Camera className="w-3.5 h-3.5 text-sky-600" />
@@ -458,6 +451,15 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
           </div>
         </form>
       </div>
+
+      <CameraCaptureModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        title={`Foto Meteran Blok ${blok === 'Lainnya' ? customBlok || 'Lainnya' : blok} No. ${nomor || '-'}`}
+        onCapture={({ dataUrl }) => {
+          setFotoBukti(dataUrl);
+        }}
+      />
     </div>
   );
 };

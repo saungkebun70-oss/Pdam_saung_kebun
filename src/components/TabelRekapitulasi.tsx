@@ -120,48 +120,72 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
     }
   };
 
-  // Filtered and Sorted Records with comprehensive type safety
-  const filteredRecords = useMemo(() => {
+  // Base records filtered by Blok and Search (before Status filter) for accurate tab counts
+  const baseFilteredRecords = useMemo(() => {
     const list = Array.isArray(records) ? records : [];
 
-    return list
-      .filter((rec) => {
-        if (!rec) return false;
+    return list.filter((rec) => {
+      if (!rec) return false;
 
-        const recBlok = String(rec.blok || '').trim();
-        const recNama = String(rec.nama || '').trim();
-        const recNomor = String(rec.nomor || '').trim();
-        const recKet = String(rec.keterangan || '').trim();
-        const recStatus = String(rec.status || '');
+      const recBlok = String(rec.blok || '').trim();
+      const recNama = String(rec.nama || '').trim();
+      const recNomor = String(rec.nomor || '').trim();
+      const recKet = String(rec.keterangan || '').trim();
 
-        // Blok filter
-        if (selectedBlok !== 'Semua') {
-          if (selectedBlok === 'Lainnya') {
-            const standardBloks = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'Pos Keamanan'];
-            if (standardBloks.includes(recBlok)) return false;
-          } else if (recBlok.toLowerCase() !== selectedBlok.toLowerCase()) {
-            return false;
-          }
-        }
-
-        // Status filter
-        if (selectedStatus !== 'Semua' && recStatus !== selectedStatus) {
+      // Blok filter
+      if (selectedBlok !== 'Semua') {
+        if (selectedBlok === 'Lainnya') {
+          const standardBloks = ['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'Pos Keamanan'];
+          if (standardBloks.includes(recBlok)) return false;
+        } else if (recBlok.toLowerCase() !== selectedBlok.toLowerCase()) {
           return false;
         }
+      }
 
-        // Search term
-        if (searchTerm.trim()) {
-          const term = searchTerm.toLowerCase();
-          const matchNama = recNama.toLowerCase().includes(term);
-          const matchBlok = recBlok.toLowerCase().includes(term);
-          const matchNomor = recNomor.toLowerCase().includes(term);
-          const matchKet = recKet.toLowerCase().includes(term);
-          const matchGabung = `${recBlok}${recNomor}`.toLowerCase().includes(term);
-          if (!matchNama && !matchBlok && !matchNomor && !matchKet && !matchGabung) {
-            return false;
-          }
+      // Search term
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase();
+        const matchNama = recNama.toLowerCase().includes(term);
+        const matchBlok = recBlok.toLowerCase().includes(term);
+        const matchNomor = recNomor.toLowerCase().includes(term);
+        const matchKet = recKet.toLowerCase().includes(term);
+        const matchGabung = `${recBlok}${recNomor}`.toLowerCase().includes(term);
+        if (!matchNama && !matchBlok && !matchNomor && !matchKet && !matchGabung) {
+          return false;
         }
+      }
 
+      return true;
+    });
+  }, [records, selectedBlok, searchTerm]);
+
+  const statusCounts = useMemo(() => {
+    let terpasang = 0;
+    let proses = 0;
+    let belum = 0;
+    let foto = 0;
+    baseFilteredRecords.forEach((r) => {
+      if (r.status === 'Sudah Terpasang') terpasang += 1;
+      else if (r.status === 'Dalam Proses') proses += 1;
+      else belum += 1;
+      if (r.fotoBukti) foto += 1;
+    });
+    return {
+      all: baseFilteredRecords.length,
+      terpasang,
+      proses,
+      belum,
+      foto,
+    };
+  }, [baseFilteredRecords]);
+
+  // Filtered and Sorted Records with comprehensive type safety
+  const filteredRecords = useMemo(() => {
+    return baseFilteredRecords
+      .filter((rec) => {
+        if (selectedStatus !== 'Semua' && String(rec.status || '') !== selectedStatus) {
+          return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -183,7 +207,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
         const noB = String(b?.nomor || '');
         return noA.localeCompare(noB, undefined, { numeric: true });
       });
-  }, [records, selectedBlok, selectedStatus, searchTerm, sortBy]);
+  }, [baseFilteredRecords, selectedStatus, sortBy]);
 
   // Pagination Calculations
   const totalItems = filteredRecords.length;
@@ -357,23 +381,80 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           ))}
         </div>
 
-        {/* Ringkasan Cepat Ceklist Terpasang */}
-        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-200/60 text-[11px] font-bold">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Sudah Terpasang: {filteredRecords.filter((r) => r.status === 'Sudah Terpasang').length}</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-            <span>Dalam Proses: {filteredRecords.filter((r) => r.status === 'Dalam Proses').length}</span>
-          </span>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 border border-rose-300">
-            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
-            <span>Belum Terpasang: {filteredRecords.filter((r) => r.status === 'Belum Terpasang').length}</span>
-          </span>
+        {/* Filter Cepat Status Pemasangan (1-Ketuk: Semua / Terpasang / Belum Terpasang / Dalam Proses) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-200/60 text-[11px] font-bold">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-0.5">
+              Filter Status:
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedStatus('Semua');
+                setCurrentPage(1);
+              }}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                selectedStatus === 'Semua'
+                  ? 'bg-sky-700 text-white border-sky-800 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Semua ({statusCounts.all})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedStatus('Sudah Terpasang');
+                setCurrentPage(1);
+              }}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                selectedStatus === 'Sudah Terpasang'
+                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                  : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>Terpasang ({statusCounts.terpasang})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedStatus('Belum Terpasang');
+                setCurrentPage(1);
+              }}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                selectedStatus === 'Belum Terpasang'
+                  ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                  : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
+              }`}
+            >
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span>Belum Terpasang ({statusCounts.belum})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedStatus('Dalam Proses');
+                setCurrentPage(1);
+              }}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                selectedStatus === 'Dalam Proses'
+                  ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                  : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Dalam Proses ({statusCounts.proses})</span>
+            </button>
+          </div>
+
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-200">
             <Camera className="w-3.5 h-3.5 text-sky-600" />
-            <span>Ada Foto: {filteredRecords.filter((r) => Boolean(r.fotoBukti)).length}</span>
+            <span>Ada Foto: {statusCounts.foto}</span>
           </span>
         </div>
 
@@ -878,10 +959,17 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                           <button
                             type="button"
                             onClick={() => setPreviewPhotoRecord(rec)}
-                            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 text-xs font-bold transition cursor-pointer"
+                            className="inline-flex items-center gap-2 p-1 pr-3 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 text-xs font-bold transition cursor-pointer"
                           >
-                            <ImageIcon className="w-3.5 h-3.5 text-sky-600" />
-                            <span>Lihat Foto Bukti Blok {recBlok}/{recNomor}</span>
+                            <img
+                              src={rec.fotoBukti}
+                              alt={`Thumbnail Bukti Blok ${recBlok} No. ${recNomor}`}
+                              className="w-11 h-8 object-cover rounded-lg border border-sky-200"
+                            />
+                            <span className="flex items-center gap-1">
+                              <ZoomIn className="w-3.5 h-3.5 text-sky-600" />
+                              <span>Lihat Foto Bukti</span>
+                            </span>
                           </button>
                         ) : (
                           <button
