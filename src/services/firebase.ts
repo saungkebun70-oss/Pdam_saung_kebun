@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfig from '@/firebase-applet-config.json';
-import { PdamRecord, INITIAL_RECORDS, DEFAULT_ADMIN_PIN, MASTER_DATA_VERSION, StatusPemasangan } from '../types';
+import { PdamRecord, INITIAL_RECORDS, DEFAULT_ADMIN_PIN, DEFAULT_VERCEL_URL, MASTER_DATA_VERSION, StatusPemasangan } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -95,6 +95,7 @@ export async function checkAndSeedInitialData(): Promise<void> {
     if (!adminSnap.exists()) {
       await setDoc(adminRef, {
         pin: DEFAULT_ADMIN_PIN,
+        vercelUrl: DEFAULT_VERCEL_URL,
         dataVersion: MASTER_DATA_VERSION,
         updatedAt: now,
       });
@@ -227,16 +228,19 @@ export function subscribeAdminSettings(
         const data = snap.data() || {};
         onSettings({
           pin: typeof data.pin === 'string' && data.pin.length === 6 ? data.pin : DEFAULT_ADMIN_PIN,
-          vercelUrl: typeof data.vercelUrl === 'string' ? data.vercelUrl.trim() : '',
+          vercelUrl:
+            typeof data.vercelUrl === 'string' && data.vercelUrl.trim()
+              ? data.vercelUrl.trim()
+              : DEFAULT_VERCEL_URL,
         });
       } else {
-        onSettings({ pin: DEFAULT_ADMIN_PIN, vercelUrl: '' });
+        onSettings({ pin: DEFAULT_ADMIN_PIN, vercelUrl: DEFAULT_VERCEL_URL });
       }
     },
     (err) => {
       console.error('Admin settings subscription error:', err);
       if (onError) onError(err);
-      onSettings({ pin: DEFAULT_ADMIN_PIN, vercelUrl: '' });
+      onSettings({ pin: DEFAULT_ADMIN_PIN, vercelUrl: DEFAULT_VERCEL_URL });
     }
   );
 }

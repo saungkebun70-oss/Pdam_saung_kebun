@@ -93,3 +93,4 @@ export const INITIAL_RECORDS: Omit<PdamRecord, 'id'>[] = [
 ];
 
 export const DEFAULT_ADMIN_PIN = '123456';
+export const DEFAULT_VERCEL_URL = 'https://pdam-saung-kebun.vercel.app';

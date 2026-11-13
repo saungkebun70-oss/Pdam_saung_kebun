@@ -16,7 +16,7 @@ import {
   resetDatabaseToDefault,
   checkAndSeedInitialData,
 } from './services/firebase';
-import { PdamRecord, StatusPemasangan, DEFAULT_ADMIN_PIN, TARGET_TOTAL_UNIT } from './types';
+import { PdamRecord, StatusPemasangan, DEFAULT_ADMIN_PIN, DEFAULT_VERCEL_URL, TARGET_TOTAL_UNIT } from './types';
 import { Header } from './components/Header';
 import { ProgressBar } from './components/ProgressBar';
 import { FormInputWarga } from './components/FormInputWarga';
@@ -46,9 +46,9 @@ export default function App() {
   const [adminPin, setAdminPin] = useState<string>(DEFAULT_ADMIN_PIN);
   const [vercelUrl, setVercelUrl] = useState<string>(() => {
     try {
-      return localStorage.getItem('pdam_vercel_url') || '';
+      return localStorage.getItem('pdam_vercel_url') || DEFAULT_VERCEL_URL;
     } catch {
-      return '';
+      return DEFAULT_VERCEL_URL;
     }
   });
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
@@ -327,10 +327,10 @@ export default function App() {
     ? `https://${String(import.meta.env.VITE_VERCEL_URL).replace(/^https?:\/\//, '')}`
     : '';
   const effectiveAppUrl =
-    (isRunningOnVercel ? window.location.origin : '') ||
     vercelUrl ||
+    (isRunningOnVercel ? window.location.origin : '') ||
     envVercelUrl ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
+    DEFAULT_VERCEL_URL;
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-cyan-200">

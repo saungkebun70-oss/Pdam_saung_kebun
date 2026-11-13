@@ -281,7 +281,7 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
                       required
                       value={vercelInput}
                       onChange={(e) => setVercelInput(e.target.value)}
-                      placeholder="https://nama-project.vercel.app"
+                      placeholder="https://pdam-saung-kebun.vercel.app"
                       className="w-full px-2.5 py-1.5 bg-white border border-slate-300 focus:border-sky-500 rounded-lg text-xs font-mono text-slate-800 outline-none"
                     />
                     <button
