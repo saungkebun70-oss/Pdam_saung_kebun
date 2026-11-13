@@ -4,7 +4,7 @@ import {
   Lock,
   Unlock,
   Settings,
-  Share2,
+  QrCode,
   RefreshCw,
 } from 'lucide-react';
 
@@ -62,10 +62,11 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenShareWa}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+            title="Tampilkan QR Code & Bagikan Link"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-xs transition cursor-pointer"
           >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Bagikan WA</span>
+            <QrCode className="w-4 h-4" />
+            <span className="hidden sm:inline">QR Code &amp; WA</span>
           </button>
 
           {isAdminUnlocked ? (

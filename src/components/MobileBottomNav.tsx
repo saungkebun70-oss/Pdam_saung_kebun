@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClipboardList, UserPlus, BarChart3, Share2, Settings } from 'lucide-react';
+import { ClipboardList, UserPlus, BarChart3, QrCode, Settings } from 'lucide-react';
 
 export type AppPageTab = 'rekap' | 'form' | 'progress' | 'all';
 
@@ -64,8 +64,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
           onClick={onOpenShareWa}
           className="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 transition cursor-pointer"
         >
-          <Share2 className="w-4 h-4 mb-0.5" />
-          <span>Share WA</span>
+          <QrCode className="w-4 h-4 mb-0.5" />
+          <span>QR Code</span>
         </button>
 
         <button

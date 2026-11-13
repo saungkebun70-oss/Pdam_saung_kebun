@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, KeyRound, Share2, Database, X, CheckCircle, AlertCircle, Copy, Check, ExternalLink, RefreshCw, FileSpreadsheet, Download, Globe } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 
 interface PengaturanModalProps {
   isOpen: boolean;
@@ -320,6 +321,15 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
                     <span>{copiedLink ? 'Tersalin' : 'Salin'}</span>
                   </button>
                 </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col items-center text-center space-y-2">
+                <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                  <QRCodeCanvas value={targetUrl} size={136} level="M" includeMargin={true} />
+                </div>
+                <span className="text-[11px] font-semibold text-slate-600">
+                  Scan QR Code ini untuk membuka aplikasi di HP / Tablet lain
+                </span>
               </div>
 
               <button
