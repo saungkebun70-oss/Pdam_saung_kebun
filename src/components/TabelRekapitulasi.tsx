@@ -22,6 +22,7 @@ import {
   Camera,
   Image as ImageIcon,
   ZoomIn,
+  CheckSquare,
 } from 'lucide-react';
 import { PdamRecord, StatusPemasangan } from '../types';
 import { EditRecordModal } from './EditRecordModal';
@@ -82,14 +83,9 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
   const [selectedStatus, setSelectedStatus] = useState('Semua');
   const [sortBy, setSortBy] = useState<'blok' | 'nama' | 'tanggal'>('blok');
 
-  // Pagination State (Default 1 item per halaman for mobile/tablet friendly experience)
+  // Pagination State (Default tampil semua agar bisa langsung ceklist satu per satu)
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      return 1; // Default 1 item per halaman di mobile
-    }
-    return 10;
-  });
+  const [itemsPerPage, setItemsPerPage] = useState<number>(999);
 
   // Edit Modal & Photo Lightbox State
   const [editingRecord, setEditingRecord] = useState<PdamRecord | null>(null);
@@ -103,6 +99,13 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
     if (tableTopRef.current) {
       tableTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+  };
+
+  // 1-Tap Checklist Toggle: Sudah Terpasang <-> Belum Terpasang
+  const handleChecklistToggle = (rec: PdamRecord) => {
+    const nextStatus: StatusPemasangan =
+      rec.status === 'Sudah Terpasang' ? 'Belum Terpasang' : 'Sudah Terpasang';
+    onStatusChange(rec.id, nextStatus);
   };
 
   // Khusus ketika item dipilih di navigasi bawah pada tampilan mobile / tablet:
@@ -217,7 +220,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Daftar warga real-time. Ketuk nomor di navigasi bawah untuk berpindah halaman / item.
+            Daftar warga tampil semua secara real-time. Centang kotak ceklist untuk menandai sudah terpasang atau belum.
           </p>
         </div>
 
@@ -354,39 +357,55 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           ))}
         </div>
 
-        {/* Khusus Mobile & Tablet: Toggle Mode Tampilan 1 Item per Halaman vs Daftar List */}
+        {/* Ringkasan Cepat Ceklist Terpasang */}
+        <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-200/60 text-[11px] font-bold">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Sudah Terpasang: {filteredRecords.filter((r) => r.status === 'Sudah Terpasang').length}</span>
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>Belum / Proses: {filteredRecords.filter((r) => r.status !== 'Sudah Terpasang').length}</span>
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-200">
+            <Camera className="w-3.5 h-3.5 text-sky-600" />
+            <span>Ada Foto: {filteredRecords.filter((r) => Boolean(r.fotoBukti)).length}</span>
+          </span>
+        </div>
+
+        {/* Khusus Mobile & Tablet: Toggle Mode Tampilan Semua Daftar vs 1 Item per Halaman */}
         <div className="md:hidden flex items-center justify-between pt-1 border-t border-slate-200/60 text-xs">
-          <span className="text-slate-500 font-medium">Tampilan Mobile/Tablet:</span>
+          <span className="text-slate-500 font-medium">Mode Tampilan HP:</span>
           <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-xl">
             <button
               type="button"
               onClick={() => {
-                setItemsPerPage(1);
+                setItemsPerPage(999);
                 setCurrentPage(1);
               }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
-                itemsPerPage === 1
-                  ? 'bg-white text-sky-700 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-800'
-              }`}
-            >
-              <Square className="w-3 h-3 text-sky-600" />
-              <span>1 Item / Halaman</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setItemsPerPage(10);
-                setCurrentPage(1);
-              }}
-              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
                 itemsPerPage > 1
                   ? 'bg-white text-sky-700 shadow-xs'
                   : 'text-slate-600 hover:text-slate-800'
               }`}
             >
               <Layers className="w-3 h-3 text-sky-600" />
-              <span>Daftar ({itemsPerPage === 1 ? 10 : itemsPerPage})</span>
+              <span>Semua ({totalItems})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setItemsPerPage(1);
+                setCurrentPage(1);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
+                itemsPerPage === 1
+                  ? 'bg-white text-sky-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-800'
+              }`}
+            >
+              <Square className="w-3 h-3 text-sky-600" />
+              <span>1 Item</span>
             </button>
           </div>
         </div>
@@ -411,7 +430,8 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
               <thead className="bg-slate-100/70 text-slate-700 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4 w-12 text-center">No</th>
-                  <th className="py-3 px-4 w-32">Blok &amp; No</th>
+                  <th className="py-3 px-4 w-28 text-center">Ceklist</th>
+                  <th className="py-3 px-4 w-28">Blok &amp; No</th>
                   <th className="py-3 px-4">Nama Lengkap Warga</th>
                   <th className="py-3 px-4 w-44">Status Pemasangan</th>
                   <th className="py-3 px-4 w-28 text-center">Bukti Foto</th>
@@ -427,15 +447,39 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                   const recNomor = String(rec.nomor || '');
                   const recNama = String(rec.nama || '');
                   const recKet = String(rec.keterangan || '');
+                  const isInstalled = rec.status === 'Sudah Terpasang';
 
                   return (
                     <tr
                       key={recordId}
-                      className="hover:bg-sky-50/40 transition duration-150"
+                      className={`transition duration-150 ${
+                        isInstalled ? 'bg-emerald-50/30 hover:bg-emerald-50/60' : 'hover:bg-sky-50/40'
+                      }`}
                     >
                       {/* No */}
                       <td className="py-3 px-4 text-center font-bold text-slate-400">
                         {rowNumber}
+                      </td>
+
+                      {/* 1-Tap Checklist */}
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleChecklistToggle(rec)}
+                          title={isInstalled ? 'Tandai Belum Terpasang' : 'Ceklist Sudah Terpasang'}
+                          className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                            isInstalled
+                              ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs hover:bg-emerald-700'
+                              : 'bg-white text-slate-600 border-slate-300 hover:border-emerald-500 hover:text-emerald-700'
+                          }`}
+                        >
+                          {isInstalled ? (
+                            <CheckSquare className="w-4 h-4" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-400" />
+                          )}
+                          <span>{isInstalled ? 'Sudah' : 'Belum'}</span>
+                        </button>
                       </td>
 
                       {/* Blok & No */}
@@ -693,8 +737,8 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                 })}
               </div>
             ) : (
-              /* MODE MULTI DAFTAR CARD LIST */
-              <div className="divide-y divide-slate-150">
+              /* MODE SEMUA DAFTAR CHECKLIST (DEFAULT MOBILE) */
+              <div className="divide-y divide-slate-200/80">
                 {paginatedRecords.map((rec, idx) => {
                   const rowNumber = startIndex + idx + 1;
                   const recordId = rec.id || `idx-${rowNumber}`;
@@ -702,27 +746,43 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                   const recNomor = String(rec.nomor || '');
                   const recNama = String(rec.nama || '');
                   const recKet = String(rec.keterangan || '');
+                  const isInstalled = rec.status === 'Sudah Terpasang';
 
                   return (
-                    <div key={recordId} className="p-4 space-y-2.5">
+                    <div
+                      key={recordId}
+                      className={`p-3.5 space-y-2.5 transition ${
+                        isInstalled ? 'bg-emerald-50/35' : 'bg-white'
+                      }`}
+                    >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-400 w-6">
-                            #{rowNumber}
-                          </span>
-                          <span className="px-2.5 py-0.5 font-bold text-xs bg-slate-100 text-slate-800 rounded-lg border border-slate-200">
-                            Blok {recBlok} / {recNomor}
-                          </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] font-bold text-slate-400">
+                              #{rowNumber}
+                            </span>
+                            <span className="px-2 py-0.5 font-extrabold text-[11px] bg-slate-900 text-white rounded-md">
+                              Blok {recBlok} / {recNomor}
+                            </span>
+                            {recKet && (
+                              <span className="px-2 py-0.5 font-bold text-[10px] bg-emerald-100 text-emerald-800 rounded-md border border-emerald-200">
+                                {recKet}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm font-extrabold text-slate-900 mt-1 truncate">
+                            {recNama}
+                          </div>
                         </div>
 
-                        {/* Action buttons on mobile */}
-                        <div className="flex items-center gap-1">
+                        {/* Quick Edit / Delete */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             onClick={() => setEditingRecord(rec)}
-                            className="px-2.5 py-1 text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg border border-sky-200 flex items-center gap-1 cursor-pointer"
+                            className="p-1.5 text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg border border-sky-200 cursor-pointer"
+                            title="Edit & Upload Foto"
                           >
-                            <Edit2 className="w-3 h-3 text-sky-600" />
-                            <span>Edit</span>
+                            <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => onRequestDelete(rec)}
@@ -734,20 +794,34 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                         </div>
                       </div>
 
-                      {/* Resident Name */}
-                      <div className="text-sm font-bold text-slate-900">
-                        {recNama}
-                      </div>
+                      {/* 1-Tap Checklist & Status Row */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleChecklistToggle(rec)}
+                          className={`flex-1 py-2 px-3 rounded-xl border text-xs font-extrabold flex items-center justify-center gap-2 transition cursor-pointer shadow-2xs ${
+                            isInstalled
+                              ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
+                              : 'bg-white text-slate-700 border-slate-300 hover:border-emerald-500 hover:text-emerald-700'
+                          }`}
+                        >
+                          {isInstalled ? (
+                            <CheckSquare className="w-4 h-4 flex-shrink-0" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          )}
+                          <span>
+                            {isInstalled ? 'Sudah Terpasang' : 'Ceklist Terpasang'}
+                          </span>
+                        </button>
 
-                      {/* Status Change Dropdown */}
-                      <div className="flex items-center justify-between gap-2 pt-1">
-                        <span className="text-xs text-slate-500 font-medium">Status PDAM:</span>
                         <select
                           value={rec.status || 'Belum Terpasang'}
                           onChange={(e) =>
                             onStatusChange(rec.id, e.target.value as StatusPemasangan)
                           }
-                          className={`text-xs font-bold py-1.5 px-2.5 rounded-lg border outline-none cursor-pointer ${
+                          aria-label={`Status ${recNama}`}
+                          className={`text-[11px] font-bold py-2 px-2 rounded-xl border outline-none cursor-pointer ${
                             rec.status === 'Sudah Terpasang'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                               : rec.status === 'Dalam Proses'
@@ -755,14 +829,14 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                               : 'bg-rose-50 text-rose-800 border-rose-300'
                           }`}
                         >
-                          <option value="Sudah Terpasang">✓ Sudah Terpasang</option>
-                          <option value="Dalam Proses">⏳ Dalam Proses</option>
-                          <option value="Belum Terpasang">✗ Belum Terpasang</option>
+                          <option value="Sudah Terpasang">✓ Sudah</option>
+                          <option value="Dalam Proses">⏳ Proses</option>
+                          <option value="Belum Terpasang">✗ Belum</option>
                         </select>
                       </div>
 
-                      {/* Foto Bukti Thumbnail / Upload on Multi List */}
-                      <div className="flex items-center justify-between gap-2 pt-1">
+                      {/* Foto Bukti Thumbnail / Upload */}
+                      <div className="flex items-center justify-between gap-2">
                         {rec.fotoBukti ? (
                           <button
                             type="button"
@@ -779,17 +853,10 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-sky-50 border border-slate-200 text-slate-600 hover:text-sky-700 text-xs font-semibold transition cursor-pointer"
                           >
                             <Camera className="w-3.5 h-3.5" />
-                            <span>+ Tambah Foto Bukti</span>
+                            <span>+ Upload Foto Bukti</span>
                           </button>
                         )}
                       </div>
-
-                      {/* Catatan if any */}
-                      {recKet && (
-                        <div className="text-xs text-slate-500 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          {recKet}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -857,12 +924,11 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                     }}
                     className="py-1 px-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-cyan-500 cursor-pointer"
                   >
+                    <option value={999}>Semua ({totalItems})</option>
                     <option value={1}>1 item / halaman (Khusus HP/Tablet)</option>
-                    <option value={5}>5 per halaman</option>
                     <option value={10}>10 per halaman</option>
-                    <option value={15}>15 per halaman</option>
                     <option value={25}>25 per halaman</option>
-                    <option value={50}>Semua (50)</option>
+                    <option value={50}>50 per halaman</option>
                   </select>
                 </div>
 
