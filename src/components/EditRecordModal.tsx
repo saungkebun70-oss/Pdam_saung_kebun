@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Edit2, X, CheckCircle2, Clock, AlertCircle, AlertTriangle, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Edit2, X, CheckCircle2, Clock, AlertCircle, AlertTriangle, Check, Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { PdamRecord, StatusPemasangan, BlokPilihan } from '../types';
+import { compressProofImage } from '../utils/imageCompress';
 
 interface EditRecordModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface EditRecordModalProps {
     nomor: string;
     status: StatusPemasangan;
     keterangan?: string;
+    fotoBukti?: string;
   }) => Promise<void>;
 }
 
@@ -42,8 +44,13 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
   const [nomor, setNomor] = useState('');
   const [status, setStatus] = useState<StatusPemasangan>('Sudah Terpasang');
   const [keterangan, setKeterangan] = useState('');
+  const [fotoBukti, setFotoBukti] = useState('');
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (record && isOpen) {
@@ -59,12 +66,31 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
       setNomor(String(record.nomor || ''));
       setStatus(record.status || 'Belum Terpasang');
       setKeterangan(String(record.keterangan || ''));
+      setFotoBukti(String(record.fotoBukti || ''));
+      setIsProcessingPhoto(false);
       setErrorMessage(null);
       setIsSubmitting(false);
     }
   }, [record, isOpen]);
 
   if (!isOpen || !record) return null;
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setErrorMessage(null);
+    setIsProcessingPhoto(true);
+    try {
+      const { dataUrl } = await compressProofImage(file);
+      setFotoBukti(dataUrl);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Gagal memproses foto. Silakan coba foto lain.');
+    } finally {
+      setIsProcessingPhoto(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +134,7 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
         nomor: trimmedNomor,
         status,
         keterangan: keterangan.trim(),
+        fotoBukti,
       });
       onClose();
     } catch (err: any) {
@@ -295,6 +322,98 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
             </div>
           </div>
 
+          {/* Foto Bukti Pemasangan Meteran */}
+          <div className="p-3 rounded-xl bg-sky-50/70 border border-sky-200 space-y-2">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                Foto Bukti Meteran Terpasang
+              </label>
+              <p className="text-[11px] text-slate-500">
+                Sesuai Blok {blok === 'Lainnya' ? customBlok || 'Lainnya' : blok} No. {nomor || '-'}
+              </p>
+            </div>
+
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoSelect}
+              className="hidden"
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoSelect}
+              className="hidden"
+            />
+
+            {isProcessingPhoto ? (
+              <div className="py-5 text-center bg-white rounded-xl border border-dashed border-sky-300 text-xs text-sky-700 font-semibold flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+                <span>Memproses foto...</span>
+              </div>
+            ) : fotoBukti ? (
+              <div className="space-y-2">
+                <div className="relative rounded-xl overflow-hidden border border-sky-200 bg-slate-900">
+                  <img
+                    src={fotoBukti}
+                    alt={`Bukti meteran Blok ${blok} No. ${nomor}`}
+                    className="w-full max-h-48 object-contain mx-auto"
+                  />
+                  <div className="absolute bottom-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                    Bukti Blok {blok === 'Lainnya' ? customBlok || 'Lainnya' : blok} / No. {nomor || '-'}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex-1 py-1.5 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Ganti Foto</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="py-1.5 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <ImagePlus className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Galeri</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFotoBukti('')}
+                    className="py-1.5 px-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="py-2 px-2.5 bg-white hover:bg-sky-50 border border-sky-300 text-sky-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Kamera</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="py-2 px-2.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <ImagePlus className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Galeri</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Catatan */}
           <div>
             <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -321,7 +440,7 @@ export const EditRecordModal: React.FC<EditRecordModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isProcessingPhoto}
               className="flex-1 py-2.5 px-3 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl shadow-sm transition flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               {isSubmitting ? (

@@ -23,7 +23,11 @@
         },
         "keterangan": {
           "type": "string",
-          "maxLength": 255
+          "maxLength": 500
+        },
+        "fotoBukti": {
+          "type": "string",
+          "maxLength": 250000
         },
         "createdAt": {
           "type": "string"
@@ -48,6 +52,9 @@
         "vercelUrl": {
           "type": "string",
           "maxLength": 255
+        },
+        "dataVersion": {
+          "type": "number"
         },
         "updatedAt": {
           "type": "string"

@@ -19,6 +19,9 @@ import {
   Clock,
   AlertCircle,
   Download,
+  Camera,
+  Image as ImageIcon,
+  ZoomIn,
 } from 'lucide-react';
 import { PdamRecord, StatusPemasangan } from '../types';
 import { EditRecordModal } from './EditRecordModal';
@@ -88,8 +91,9 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
     return 10;
   });
 
-  // Edit Modal State
+  // Edit Modal & Photo Lightbox State
   const [editingRecord, setEditingRecord] = useState<PdamRecord | null>(null);
+  const [previewPhotoRecord, setPreviewPhotoRecord] = useState<PdamRecord | null>(null);
 
   // Scroll ref to smoothly return to top of table/card when switching items
   const tableTopRef = useRef<HTMLDivElement>(null);
@@ -251,7 +255,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
 
           <button
             onClick={onRequestReset}
-            title="Reset ke 4 data awal pengurus (Dilindungi PIN)"
+            title="Reset ke 46 data master warga lunas (Dilindungi PIN)"
             className="flex items-center gap-1 px-2.5 py-2 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl transition cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -410,6 +414,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                   <th className="py-3 px-4 w-32">Blok &amp; No</th>
                   <th className="py-3 px-4">Nama Lengkap Warga</th>
                   <th className="py-3 px-4 w-44">Status Pemasangan</th>
+                  <th className="py-3 px-4 w-28 text-center">Bukti Foto</th>
                   <th className="py-3 px-4">Catatan</th>
                   <th className="py-3 px-4 w-28 text-center">Aksi</th>
                 </tr>
@@ -466,6 +471,37 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                           <option value="Dalam Proses">⏳ Dalam Proses</option>
                           <option value="Belum Terpasang">✗ Belum Terpasang</option>
                         </select>
+                      </td>
+
+                      {/* Bukti Foto */}
+                      <td className="py-3 px-4 text-center">
+                        {rec.fotoBukti ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewPhotoRecord(rec)}
+                            className="group relative inline-flex items-center justify-center rounded-lg overflow-hidden border border-sky-200 hover:border-sky-500 shadow-2xs transition cursor-pointer"
+                            title={`Lihat Foto Bukti Blok ${recBlok} No. ${recNomor}`}
+                          >
+                            <img
+                              src={rec.fotoBukti}
+                              alt={`Bukti Blok ${recBlok} No. ${recNomor}`}
+                              className="w-12 h-9 object-cover"
+                            />
+                            <span className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                              <ZoomIn className="w-3.5 h-3.5 text-white" />
+                            </span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEditingRecord(rec)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-500 hover:text-sky-700 bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-200 rounded-lg transition cursor-pointer"
+                            title="Tambahkan Foto Bukti"
+                          >
+                            <Camera className="w-3 h-3" />
+                            <span>+ Foto</span>
+                          </button>
+                        )}
                       </td>
 
                       {/* Catatan */}
@@ -563,6 +599,45 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                             <option value="Belum Terpasang">✗ Belum Terpasang</option>
                           </select>
                         </div>
+                      </div>
+
+                      {/* Foto Bukti Terpasang Sesuai Blok & No Rumah */}
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Bukti Foto Meteran (Blok {recBlok} / No. {recNomor})
+                        </span>
+                        {rec.fotoBukti ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewPhotoRecord(rec)}
+                            className="w-full relative rounded-xl overflow-hidden border border-sky-200 bg-slate-900 group cursor-pointer block"
+                          >
+                            <img
+                              src={rec.fotoBukti}
+                              alt={`Bukti terpasang Blok ${recBlok} No. ${recNomor}`}
+                              className="w-full max-h-56 object-cover"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/85 via-slate-900/40 to-transparent p-2.5 flex items-center justify-between text-white">
+                              <span className="text-[11px] font-bold flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>Bukti Blok {recBlok} / {recNomor}</span>
+                              </span>
+                              <span className="text-[10px] bg-white/20 backdrop-blur-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <ZoomIn className="w-3 h-3" />
+                                <span>Perbesar</span>
+                              </span>
+                            </div>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEditingRecord(rec)}
+                            className="w-full py-3 px-3 rounded-xl border border-dashed border-sky-300 bg-sky-50/50 hover:bg-sky-50 text-sky-800 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+                          >
+                            <Camera className="w-4 h-4 text-sky-600" />
+                            <span>Upload Foto Bukti Blok {recBlok} / {recNomor}</span>
+                          </button>
+                        )}
                       </div>
 
                       {/* Catatan / Keterangan */}
@@ -684,6 +759,29 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
                           <option value="Dalam Proses">⏳ Dalam Proses</option>
                           <option value="Belum Terpasang">✗ Belum Terpasang</option>
                         </select>
+                      </div>
+
+                      {/* Foto Bukti Thumbnail / Upload on Multi List */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        {rec.fotoBukti ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewPhotoRecord(rec)}
+                            className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 text-xs font-bold transition cursor-pointer"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5 text-sky-600" />
+                            <span>Lihat Foto Bukti Blok {recBlok}/{recNomor}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEditingRecord(rec)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-sky-50 border border-slate-200 text-slate-600 hover:text-sky-700 text-xs font-semibold transition cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5" />
+                            <span>+ Tambah Foto Bukti</span>
+                          </button>
+                        )}
                       </div>
 
                       {/* Catatan if any */}
@@ -868,6 +966,78 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           setEditingRecord(null);
         }}
       />
+
+      {/* Full-Screen Photo Lightbox Modal */}
+      {previewPhotoRecord && previewPhotoRecord.fotoBukti && (
+        <div
+          onClick={() => setPreviewPhotoRecord(null)}
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[92vh]"
+          >
+            <div className="p-3.5 sm:p-4 border-b border-slate-100 flex items-center justify-between gap-2">
+              <div>
+                <div className="text-xs sm:text-sm font-bold text-slate-800">
+                  Bukti Foto Meteran PDAM — Blok {previewPhotoRecord.blok} / No. {previewPhotoRecord.nomor}
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Atas Nama: <span className="font-semibold text-slate-700">{previewPhotoRecord.nama}</span> • {previewPhotoRecord.status}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewPhotoRecord(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-950 flex-1 overflow-auto flex items-center justify-center p-2">
+              <img
+                src={previewPhotoRecord.fotoBukti}
+                alt={`Bukti PDAM Blok ${previewPhotoRecord.blok} No. ${previewPhotoRecord.nomor}`}
+                className="max-h-[65vh] w-auto object-contain rounded-lg"
+              />
+            </div>
+
+            <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = previewPhotoRecord;
+                  setPreviewPhotoRecord(null);
+                  setEditingRecord(target);
+                }}
+                className="px-3 py-2 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 text-xs font-bold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Ganti Foto</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewPhotoRecord.fotoBukti}
+                  download={`Bukti_PDAM_Blok_${previewPhotoRecord.blok}_No_${previewPhotoRecord.nomor}.jpg`}
+                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Simpan Foto</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewPhotoRecord(null)}
+                  className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

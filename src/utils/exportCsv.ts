@@ -8,6 +8,7 @@ export function exportToCsv(records: PdamRecord[]): void {
     'Nomor Rumah',
     'Alamat Lengkap',
     'Status Pemasangan',
+    'Bukti Foto',
     'Catatan / Keterangan',
     'Tanggal Update',
   ];
@@ -30,6 +31,7 @@ export function exportToCsv(records: PdamRecord[]): void {
       escapeField(rec.nomor),
       escapeField(`Blok ${rec.blok} No. ${rec.nomor}`),
       escapeField(rec.status),
+      escapeField(rec.fotoBukti ? 'Ada Foto Bukti' : 'Belum Ada'),
       escapeField(rec.keterangan || '-'),
       escapeField(formattedDate),
     ].join(',');
@@ -54,6 +56,7 @@ export function exportToTxt(records: PdamRecord[]): void {
   const terpasangCount = records.filter((r) => r.status === 'Sudah Terpasang').length;
   const prosesCount = records.filter((r) => r.status === 'Dalam Proses').length;
   const belumCount = records.filter((r) => r.status === 'Belum Terpasang').length;
+  const fotoCount = records.filter((r) => Boolean(r.fotoBukti)).length;
   const percent = Math.min(100, Math.round((terpasangCount / TARGET_TOTAL_UNIT) * 100));
 
   const nowStr = new Date().toLocaleDateString('id-ID', {
@@ -75,13 +78,15 @@ export function exportToTxt(records: PdamRecord[]): void {
   lines.push(`- Dalam Proses    : ${prosesCount} Unit`);
   lines.push(`- Belum Terpasang : ${belumCount} Unit`);
   lines.push(`- Total Terdata   : ${records.length} Unit`);
+  lines.push(`- Bukti Foto Ada  : ${fotoCount} Unit`);
   lines.push(`===========================================`);
   lines.push(`DAFTAR WARGA TERDATA:`);
 
   records.forEach((rec, index) => {
     const ket = rec.keterangan ? ` | Ket: ${rec.keterangan}` : '';
+    const foto = rec.fotoBukti ? ' | Foto: Ada' : ' | Foto: Belum';
     lines.push(
-      `${index + 1}. Nama: ${rec.nama} | Blok/No: ${rec.blok}/${rec.nomor} | Status: ${rec.status}${ket}`
+      `${index + 1}. Nama: ${rec.nama} | Blok/No: ${rec.blok}/${rec.nomor} | Status: ${rec.status}${foto}${ket}`
     );
   });
 

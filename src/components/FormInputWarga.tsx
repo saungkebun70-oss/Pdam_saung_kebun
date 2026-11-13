@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { UserPlus, CheckCircle2, Clock, AlertTriangle, AlertCircle, Sparkles } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { UserPlus, CheckCircle2, Clock, AlertTriangle, AlertCircle, Sparkles, Camera, ImagePlus, Trash2 } from 'lucide-react';
 import { BlokPilihan, StatusPemasangan, PdamRecord } from '../types';
+import { compressProofImage } from '../utils/imageCompress';
 
 interface FormInputWargaProps {
   existingRecords: PdamRecord[];
@@ -10,6 +11,7 @@ interface FormInputWargaProps {
     nomor: string;
     status: StatusPemasangan;
     keterangan?: string;
+    fotoBukti?: string;
   }) => Promise<void>;
 }
 
@@ -36,11 +38,35 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
   const [nomor, setNomor] = useState('');
   const [status, setStatus] = useState<StatusPemasangan>('Sudah Terpasang');
   const [keterangan, setKeterangan] = useState('');
+  const [fotoBukti, setFotoBukti] = useState('');
+  const [fotoSizeKb, setFotoSizeKb] = useState<number | null>(null);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   const selectedBlokName = blok === 'Lainnya' ? customBlok.trim() || 'Lainnya' : blok;
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setErrorMessage(null);
+    setIsProcessingPhoto(true);
+    try {
+      const { dataUrl, sizeKb } = await compressProofImage(file);
+      setFotoBukti(dataUrl);
+      setFotoSizeKb(sizeKb);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Gagal memproses foto. Silakan coba foto lain.');
+    } finally {
+      setIsProcessingPhoto(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +117,7 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
         nomor: trimmedNomor,
         status,
         keterangan: keterangan.trim(),
+        fotoBukti,
       });
 
       setSuccessMessage(
@@ -101,6 +128,8 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
       setNama('');
       setNomor('');
       setKeterangan('');
+      setFotoBukti('');
+      setFotoSizeKb(null);
       if (blok === 'Lainnya') setCustomBlok('');
 
       // Auto dismiss success toast after 6s
@@ -309,6 +338,101 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
           </div>
         </div>
 
+        {/* Foto Bukti Pemasangan Meteran */}
+        <div className="p-3.5 rounded-2xl bg-sky-50/60 border border-sky-200/80 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Foto Bukti Meteran Terpasang
+              </label>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Lampirkan foto meteran PDAM &amp; nomor rumah sesuai Blok {selectedBlokName} No. {nomor || '...'}
+              </p>
+            </div>
+            {fotoSizeKb && (
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full flex-shrink-0">
+                {fotoSizeKb} KB
+              </span>
+            )}
+          </div>
+
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhotoSelect}
+            className="hidden"
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoSelect}
+            className="hidden"
+          />
+
+          {isProcessingPhoto ? (
+            <div className="py-6 text-center bg-white rounded-xl border border-dashed border-sky-300 text-xs text-sky-700 font-semibold flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-sky-600 border-t-transparent rounded-full animate-spin" />
+              <span>Mengoptimalkan ukuran foto...</span>
+            </div>
+          ) : fotoBukti ? (
+            <div className="space-y-2">
+              <div className="relative rounded-xl overflow-hidden border border-sky-200 bg-slate-900">
+                <img
+                  src={fotoBukti}
+                  alt={`Bukti meteran Blok ${selectedBlokName} No. ${nomor}`}
+                  className="w-full max-h-56 object-contain mx-auto"
+                />
+                <div className="absolute bottom-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg backdrop-blur-xs">
+                  Bukti Blok {selectedBlokName} / No. {nomor || '-'}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 py-2 px-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <Camera className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Ganti Foto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFotoBukti('');
+                    setFotoSizeKb(null);
+                  }}
+                  className="py-2 px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1 transition cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="py-2.5 px-3 bg-white hover:bg-sky-50 border border-sky-300 text-sky-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
+              >
+                <Camera className="w-4 h-4 text-sky-600" />
+                <span>Ambil Foto Kamera</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="py-2.5 px-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
+              >
+                <ImagePlus className="w-4 h-4 text-slate-600" />
+                <span>Pilih dari Galeri</span>
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Catatan / Keterangan Tambahan */}
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -326,7 +450,7 @@ export const FormInputWarga: React.FC<FormInputWargaProps> = ({
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isProcessingPhoto}
           className="w-full py-3 px-4 bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-700 hover:to-cyan-700 text-white font-bold text-sm rounded-xl shadow-md transition transform active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
         >
           {isSubmitting ? (

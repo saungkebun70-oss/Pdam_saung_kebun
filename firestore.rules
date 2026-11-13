@@ -7,13 +7,16 @@ service cloud.firestore {
       return data.nama is string && data.nama.size() >= 1 && data.nama.size() <= 100 &&
              data.blok is string && data.blok.size() >= 1 && data.blok.size() <= 30 &&
              data.nomor is string && data.nomor.size() >= 1 && data.nomor.size() <= 20 &&
-             data.status in ['Sudah Terpasang', 'Dalam Proses', 'Belum Terpasang'];
+             data.status in ['Sudah Terpasang', 'Dalam Proses', 'Belum Terpasang'] &&
+             (!('keterangan' in data) || (data.keterangan is string && data.keterangan.size() <= 500)) &&
+             (!('fotoBukti' in data) || (data.fotoBukti is string && data.fotoBukti.size() <= 250000));
     }
 
     // Helper for Admin Settings
     function isValidAdminSettings(data) {
       return data.pin is string && data.pin.size() == 6 && data.pin.matches('^[0-9]{6}$') &&
-             (!('vercelUrl' in data) || (data.vercelUrl is string && data.vercelUrl.size() <= 255));
+             (!('vercelUrl' in data) || (data.vercelUrl is string && data.vercelUrl.size() <= 255)) &&
+             (!('dataVersion' in data) || data.dataVersion is int);
     }
 
     // Koleksi PDAM Saung Kebun

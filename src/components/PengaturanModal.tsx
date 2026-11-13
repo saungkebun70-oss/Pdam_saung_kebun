@@ -375,7 +375,7 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
               <div className="pt-2 border-t border-slate-150">
                 <span className="font-bold text-slate-800 block mb-1">Reset Data Database:</span>
                 <p className="text-slate-500 mb-2">
-                  Jika ingin mengembalikan database menjadi 4 data awal pengurus (Sarma, Sugih, Dwi, Ardi):
+                  Jika ingin mengembalikan database menjadi 46 data master warga lunas (Blok B3, B5, B6, B7, B8):
                 </p>
                 <button
                   type="button"
@@ -386,7 +386,7 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
                   className="w-full py-2 px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-semibold rounded-xl transition text-center flex items-center justify-center gap-1.5"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Reset Database ke 4 Data Awal (Verifikasi PIN)</span>
+                  <span>Reset Database ke 46 Data Master (Verifikasi PIN)</span>
                 </button>
               </div>
             </div>

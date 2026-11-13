@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfig from '@/firebase-applet-config.json';
-import { PdamRecord, INITIAL_RECORDS, DEFAULT_ADMIN_PIN, StatusPemasangan } from '../types';
+import { PdamRecord, INITIAL_RECORDS, DEFAULT_ADMIN_PIN, MASTER_DATA_VERSION, StatusPemasangan } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -77,47 +77,85 @@ export async function testConnection(): Promise<boolean> {
 const PDAM_COLLECTION = 'pdam_saung_kebun';
 const SETTINGS_ADMIN_DOC = 'settings/admin';
 
-// Initialize default settings and seed initial 4 data if empty
+// Initialize default settings and sync master 46 LUNAS resident data when needed
 let isInitializingSeed = false;
 export async function checkAndSeedInitialData(): Promise<void> {
   if (isInitializingSeed) return;
   isInitializingSeed = true;
 
   try {
-    // 1. Check Admin PIN
+    // 1. Check Admin PIN & Data Version
     const adminRef = doc(db, 'settings', 'admin');
     const adminSnap = await getDoc(adminRef);
+    const now = new Date().toISOString();
+
+    let existingPin = DEFAULT_ADMIN_PIN;
+    let currentDataVersion = 0;
+
     if (!adminSnap.exists()) {
       await setDoc(adminRef, {
         pin: DEFAULT_ADMIN_PIN,
-        updatedAt: new Date().toISOString(),
+        dataVersion: MASTER_DATA_VERSION,
+        updatedAt: now,
       });
       console.log('Seeded default Admin PIN: 123456');
+    } else {
+      const adminData = adminSnap.data() || {};
+      if (typeof adminData.pin === 'string' && adminData.pin.length === 6) {
+        existingPin = adminData.pin;
+      }
+      currentDataVersion = typeof adminData.dataVersion === 'number' ? adminData.dataVersion : 0;
     }
 
-    // 2. Check PDAM records
+    // 2. Check PDAM records & migrate once to MASTER_DATA_VERSION (46 warga LUNAS)
     const pdamCol = collection(db, PDAM_COLLECTION);
     const snap = await getDocs(pdamCol);
-    if (snap.empty) {
-      console.log('Collection pdam_saung_kebun is empty. Seeding 4 default records...');
+    if (snap.empty || currentDataVersion !== MASTER_DATA_VERSION) {
+      console.log('Syncing pdam_saung_kebun with 46 master records...');
+
+      // Preserve any already-uploaded proof photos matching blok + nomor
+      const photoMap = new Map<string, string>();
+      snap.docs.forEach((d) => {
+        const data = d.data() || {};
+        if (typeof data.fotoBukti === 'string' && data.fotoBukti.length > 0) {
+          const key = `${String(data.blok || '').trim().toLowerCase()}__${String(data.nomor || '').trim().toLowerCase()}`;
+          photoMap.set(key, data.fotoBukti);
+        }
+      });
+
       const batch = writeBatch(db);
-      const now = new Date().toISOString();
+
+      snap.docs.forEach((d) => {
+        batch.delete(d.ref);
+      });
 
       INITIAL_RECORDS.forEach((rec) => {
+        const key = `${rec.blok.trim().toLowerCase()}__${rec.nomor.trim().toLowerCase()}`;
         const newDocRef = doc(pdamCol);
         batch.set(newDocRef, {
           nama: rec.nama,
           blok: rec.blok,
           nomor: rec.nomor,
           status: rec.status,
-          keterangan: 'Data Awal Pengurus',
+          keterangan: rec.keterangan || 'LUNAS',
+          fotoBukti: photoMap.get(key) || '',
           createdAt: now,
           updatedAt: now,
         });
       });
 
+      batch.set(
+        adminRef,
+        {
+          pin: existingPin,
+          dataVersion: MASTER_DATA_VERSION,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+
       await batch.commit();
-      console.log('Successfully seeded 4 initial records.');
+      console.log('Successfully synced 46 master PDAM records.');
     }
   } catch (error) {
     console.warn('Could not auto-seed data (likely offline or rules):', error);
@@ -146,6 +184,7 @@ export function subscribePdamRecords(
           nomor: String(d.nomor || '').trim(),
           status: (d.status as StatusPemasangan) || 'Belum Terpasang',
           keterangan: String(d.keterangan || '').trim(),
+          fotoBukti: typeof d.fotoBukti === 'string' ? d.fotoBukti : '',
           createdAt: String(d.createdAt || ''),
           updatedAt: String(d.updatedAt || ''),
         };
@@ -220,6 +259,7 @@ export async function addPdamRecord(data: {
   nomor: string;
   status: StatusPemasangan;
   keterangan?: string;
+  fotoBukti?: string;
 }): Promise<string> {
   try {
     const colRef = collection(db, PDAM_COLLECTION);
@@ -229,7 +269,8 @@ export async function addPdamRecord(data: {
       blok: data.blok.trim(),
       nomor: data.nomor.trim(),
       status: data.status,
-      keterangan: (data.keterangan || '').trim(),
+      keterangan: (data.keterangan || '').trim().slice(0, 500),
+      fotoBukti: (data.fotoBukti || '').slice(0, 250000),
       createdAt: now,
       updatedAt: now,
     });
@@ -270,7 +311,8 @@ export async function updatePdamRecord(
     if (data.blok !== undefined) payload.blok = String(data.blok).trim();
     if (data.nomor !== undefined) payload.nomor = String(data.nomor).trim();
     if (data.status !== undefined) payload.status = data.status;
-    if (data.keterangan !== undefined) payload.keterangan = String(data.keterangan).trim();
+    if (data.keterangan !== undefined) payload.keterangan = String(data.keterangan).trim().slice(0, 500);
+    if (data.fotoBukti !== undefined) payload.fotoBukti = String(data.fotoBukti).slice(0, 250000);
 
     await updateDoc(docRef, payload);
   } catch (error) {
@@ -342,7 +384,7 @@ export async function updateVercelUrl(rawUrl: string, fallbackPin = DEFAULT_ADMI
   }
 }
 
-// Reset database back to the 4 default records
+// Reset database back to the 46 master records
 export async function resetDatabaseToDefault(): Promise<void> {
   try {
     const colRef = collection(db, PDAM_COLLECTION);
@@ -354,7 +396,7 @@ export async function resetDatabaseToDefault(): Promise<void> {
       batch.delete(d.ref);
     });
 
-    // Re-seed 4 initial
+    // Re-seed 46 master records
     const now = new Date().toISOString();
     INITIAL_RECORDS.forEach((rec) => {
       const newRef = doc(colRef);
@@ -363,7 +405,8 @@ export async function resetDatabaseToDefault(): Promise<void> {
         blok: rec.blok,
         nomor: rec.nomor,
         status: rec.status,
-        keterangan: 'Data Awal Pengurus',
+        keterangan: rec.keterangan || 'LUNAS',
+        fotoBukti: '',
         createdAt: now,
         updatedAt: now,
       });

@@ -160,6 +160,7 @@ export default function App() {
     nomor: string;
     status: StatusPemasangan;
     keterangan?: string;
+    fotoBukti?: string;
   }) => {
     await addPdamRecord(data);
     showToast(
@@ -214,14 +215,14 @@ export default function App() {
   const handleRequestReset = () => {
     setPinModalConfig({
       isOpen: true,
-      title: 'Reset Database ke 4 Data Awal',
+      title: 'Reset Database ke 46 Data Warga Lunas',
       description:
-        'PERINGATAN: Tindakan ini akan mengembalikan seluruh data database menjadi 4 data awal perintis pengurus (Sarma, Sugih, Dwi, Ardi). Masukkan 6 angka PIN pengurus untuk mengonfirmasi.',
+        'PERINGATAN: Tindakan ini akan mengembalikan seluruh data database menjadi 46 data master warga lunas (Blok B3, B5, B6, B7, B8). Masukkan 6 angka PIN pengurus untuk mengonfirmasi.',
       actionButtonText: 'Konfirmasi Reset Data',
       onConfirm: async () => {
         try {
           await resetDatabaseToDefault();
-          showToast('success', 'Database berhasil di-reset kembali ke 4 data awal pengurus.');
+          showToast('success', 'Database berhasil di-reset ke 46 data master warga lunas.');
         } catch (err: any) {
           showToast('error', 'Gagal mereset database: ' + (err.message || 'Coba lagi'));
         }
