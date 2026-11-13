@@ -6,12 +6,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   subscribePdamRecords,
-  subscribeAdminPin,
+  subscribeAdminSettings,
   addPdamRecord,
   updatePdamStatus,
   updatePdamRecord,
   deletePdamRecord,
   updateAdminPin,
+  updateVercelUrl,
   resetDatabaseToDefault,
   checkAndSeedInitialData,
 } from './services/firebase';
@@ -25,7 +26,7 @@ import { ExportWaModal } from './components/ExportWaModal';
 import { PengaturanModal } from './components/PengaturanModal';
 import { ShareWaModal } from './components/ShareWaModal';
 import { MobileBottomNav, AppPageTab } from './components/MobileBottomNav';
-import { exportToCsv } from './utils/exportCsv';
+import { exportToCsv, exportToTxt } from './utils/exportCsv';
 import {
   CheckCircle2,
   AlertCircle,
@@ -35,11 +36,21 @@ import {
   UserPlus,
   BarChart3,
   Layers,
+  Download,
+  FileSpreadsheet,
+  ShieldCheck,
 } from 'lucide-react';
 
 export default function App() {
   const [records, setRecords] = useState<PdamRecord[]>([]);
   const [adminPin, setAdminPin] = useState<string>(DEFAULT_ADMIN_PIN);
+  const [vercelUrl, setVercelUrl] = useState<string>(() => {
+    try {
+      return localStorage.getItem('pdam_vercel_url') || '';
+    } catch {
+      return '';
+    }
+  });
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -94,18 +105,40 @@ export default function App() {
       }
     );
 
-    const unsubscribePin = subscribeAdminPin(
-      (pin) => {
-        setAdminPin(pin);
+    const unsubscribeSettings = subscribeAdminSettings(
+      (settings) => {
+        setAdminPin(settings.pin);
+        if (settings.vercelUrl) {
+          setVercelUrl(settings.vercelUrl);
+          try {
+            localStorage.setItem('pdam_vercel_url', settings.vercelUrl);
+          } catch {
+            // Ignore storage errors
+          }
+        } else if (
+          typeof window !== 'undefined' &&
+          window.location.hostname.endsWith('.vercel.app')
+        ) {
+          const origin = window.location.origin;
+          setVercelUrl(origin);
+          try {
+            localStorage.setItem('pdam_vercel_url', origin);
+          } catch {
+            // Ignore storage errors
+          }
+          updateVercelUrl(origin, settings.pin).catch((e) =>
+            console.warn('Auto-save Vercel URL skipped:', e)
+          );
+        }
       },
       (err) => {
-        console.error('PIN subscription error:', err);
+        console.error('Admin settings subscription error:', err);
       }
     );
 
     return () => {
       unsubscribeRecords();
-      unsubscribePin();
+      unsubscribeSettings();
     };
   }, []);
 
@@ -244,14 +277,23 @@ export default function App() {
     }
   };
 
-  // 10. Export CSV
+  // 10. Export CSV & TXT (Tersedia saat kunci akun pengurus dibuka)
   const handleExportCsv = () => {
     if (records.length === 0) {
-      showToast('info', 'Belum ada data untuk diekspor ke Excel.');
+      showToast('info', 'Belum ada data untuk diunduh ke Excel.');
       return;
     }
     exportToCsv(records);
-    showToast('success', 'File Excel/CSV berhasil diunduh!');
+    showToast('success', 'File Excel/CSV hasil rekapan berhasil diunduh!');
+  };
+
+  const handleExportTxt = () => {
+    if (records.length === 0) {
+      showToast('info', 'Belum ada data untuk diunduh.');
+      return;
+    }
+    exportToTxt(records);
+    showToast('success', 'File Laporan Rekapan (.TXT) berhasil diunduh!');
   };
 
   // 11. Tab Switcher (1 Halaman 1 Tombol Yang Dipilih - Tanpa Perlu Geser Kebawah)
@@ -259,6 +301,35 @@ export default function App() {
     setActiveTab(tab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // 12. Save Vercel Web Link
+  const handleSaveVercelUrl = async (newUrl: string) => {
+    try {
+      const saved = await updateVercelUrl(newUrl, adminPin);
+      setVercelUrl(saved);
+      try {
+        localStorage.setItem('pdam_vercel_url', saved);
+      } catch {
+        // Ignore storage errors
+      }
+      showToast('success', `Link Vercel berhasil disimpan: ${saved}`);
+    } catch (err: any) {
+      showToast('error', 'Gagal menyimpan link Vercel: ' + (err.message || 'Coba lagi'));
+      throw err;
+    }
+  };
+
+  // Resolve effective App URL (prioritize Vercel link!)
+  const isRunningOnVercel =
+    typeof window !== 'undefined' && window.location.hostname.endsWith('.vercel.app');
+  const envVercelUrl = import.meta.env.VITE_VERCEL_URL
+    ? `https://${String(import.meta.env.VITE_VERCEL_URL).replace(/^https?:\/\//, '')}`
+    : '';
+  const effectiveAppUrl =
+    (isRunningOnVercel ? window.location.origin : '') ||
+    vercelUrl ||
+    envVercelUrl ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans selection:bg-cyan-200">
@@ -314,21 +385,22 @@ export default function App() {
         ) : (
           <div key="loaded-view" className="space-y-4">
             {/* Top Navigation Tabs Bar (1 Halaman untuk 1 Tombol yang Dipilih) */}
-            <div className="bg-white rounded-2xl p-1.5 shadow-xs border border-slate-200 flex items-center justify-between gap-1">
+            <div className="bg-white rounded-2xl p-1 shadow-xs border border-slate-200 grid grid-cols-3 md:flex items-center gap-1 overflow-hidden">
               <button
                 type="button"
                 onClick={() => handleSelectTab('rekap')}
-                className={`flex-1 py-2 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`min-w-0 md:flex-1 py-2 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
                   activeTab === 'rekap'
                     ? 'bg-sky-700 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <ClipboardList className="w-4 h-4" />
-                <span className="whitespace-nowrap">Rekap Data</span>
+                <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="truncate sm:hidden">Rekap</span>
+                <span className="truncate hidden sm:inline">Rekap Data</span>
                 {records.length > 0 && (
                   <span
-                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 leading-none rounded-full font-black ${
                       activeTab === 'rekap' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
                     }`}
                   >
@@ -340,27 +412,28 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => handleSelectTab('form')}
-                className={`flex-1 py-2 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`min-w-0 md:flex-1 py-2 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
                   activeTab === 'form'
                     ? 'bg-sky-700 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <UserPlus className="w-4 h-4" />
-                <span className="whitespace-nowrap">Isi Data Warga</span>
+                <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="truncate sm:hidden">Isi Data</span>
+                <span className="truncate hidden sm:inline">Isi Data Warga</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleSelectTab('progress')}
-                className={`flex-1 py-2 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`min-w-0 md:flex-1 py-2 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer ${
                   activeTab === 'progress'
                     ? 'bg-sky-700 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <BarChart3 className="w-4 h-4" />
-                <span className="whitespace-nowrap">Progress 47</span>
+                <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="truncate">Progress 47</span>
               </button>
 
               <button
@@ -373,10 +446,51 @@ export default function App() {
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <Layers className="w-4 h-4" />
+                <Layers className="w-4 h-4 flex-shrink-0" />
                 <span>Semua</span>
               </button>
             </div>
+
+            {/* Panel Download Data Hasil Rekapan (Hanya Tampil Jika Kunci Akun Pengurus Dibuka) */}
+            {isAdminUnlocked && (
+              <div
+                key="unlocked-recap-download-panel"
+                className="bg-gradient-to-r from-emerald-50 via-sky-50 to-cyan-50 border border-emerald-200 rounded-2xl p-3.5 sm:p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="flex items-start sm:items-center gap-2.5">
+                  <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-xs flex-shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-800">
+                      Akun Pengurus Terbuka — Download Data Hasil Rekapan
+                    </div>
+                    <div className="text-[11px] text-slate-600">
+                      Unduh seluruh rekapitulasi ({records.length} unit terdata) ke perangkat Anda.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleExportCsv}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-sky-700 hover:bg-sky-800 rounded-xl shadow-xs transition cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Download Excel (.CSV)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportTxt}
+                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Laporan (.TXT)</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* HALAMAN 1: HANYA TAMPIL REKAPITULASI DATA (1 Item Per Halaman di HP) */}
             {activeTab === 'rekap' && (
@@ -389,6 +503,7 @@ export default function App() {
                   onRequestReset={handleRequestReset}
                   onOpenExportWa={() => setIsExportWaOpen(true)}
                   onExportCsv={handleExportCsv}
+                  onExportTxt={handleExportTxt}
                   isAdminUnlocked={isAdminUnlocked}
                 />
               </div>
@@ -466,6 +581,7 @@ export default function App() {
                       onRequestReset={handleRequestReset}
                       onOpenExportWa={() => setIsExportWaOpen(true)}
                       onExportCsv={handleExportCsv}
+                      onExportTxt={handleExportTxt}
                       isAdminUnlocked={isAdminUnlocked}
                     />
                   </div>
@@ -524,13 +640,18 @@ export default function App() {
         currentPin={adminPin}
         onUpdatePin={handlePinUpdated}
         onRequestReset={handleRequestReset}
-        appUrl={window.location.origin}
+        onExportCsv={handleExportCsv}
+        onExportTxt={handleExportTxt}
+        appUrl={effectiveAppUrl}
+        onSaveVercelUrl={handleSaveVercelUrl}
       />
 
       <ShareWaModal
         isOpen={isShareWaOpen}
         onClose={() => setIsShareWaOpen(false)}
-        appUrl={window.location.origin}
+        appUrl={effectiveAppUrl}
+        onSaveVercelUrl={handleSaveVercelUrl}
+        isAdminUnlocked={isAdminUnlocked}
       />
     </div>
   );

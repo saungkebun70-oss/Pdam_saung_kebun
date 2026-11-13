@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Settings, KeyRound, Share2, Database, X, CheckCircle, AlertCircle, Copy, Check, ExternalLink, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, KeyRound, Share2, Database, X, CheckCircle, AlertCircle, Copy, Check, ExternalLink, RefreshCw, FileSpreadsheet, Download, Globe } from 'lucide-react';
 
 interface PengaturanModalProps {
   isOpen: boolean;
@@ -7,7 +7,10 @@ interface PengaturanModalProps {
   currentPin: string;
   onUpdatePin: (newPin: string) => Promise<void>;
   onRequestReset: () => void;
+  onExportCsv: () => void;
+  onExportTxt: () => void;
   appUrl: string;
+  onSaveVercelUrl?: (url: string) => Promise<void>;
 }
 
 export const PengaturanModal: React.FC<PengaturanModalProps> = ({
@@ -16,7 +19,10 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
   currentPin,
   onUpdatePin,
   onRequestReset,
+  onExportCsv,
+  onExportTxt,
   appUrl,
+  onSaveVercelUrl,
 }) => {
   const [activeTab, setActiveTab] = useState<'pin' | 'share' | 'db'>('pin');
 
@@ -30,6 +36,16 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
 
   // Share State
   const [copiedLink, setCopiedLink] = useState(false);
+  const [vercelInput, setVercelInput] = useState(appUrl);
+  const [isSavingUrl, setIsSavingUrl] = useState(false);
+  const [urlSavedSuccess, setUrlSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setVercelInput(appUrl);
+      setUrlSavedSuccess(false);
+    }
+  }, [isOpen, appUrl]);
 
   if (!isOpen) return null;
 
@@ -230,19 +246,63 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: BAGIKAN KE WA (DEPLOY OTOMATIS) */}
+          {/* TAB 2: BAGIKAN KE WA (LINK VERCEL) */}
           {activeTab === 'share' && (
             <div className="space-y-3">
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-950 space-y-1">
-                <span className="font-bold block">Status Aplikasi: Aktif di Cloud</span>
+                <span className="font-bold block">Link Web dari Vercel</span>
                 <p className="text-[11px] text-emerald-800">
-                  Aplikasi telah online secara otomatis di server cloud dengan koneksi database real-time. Anda tinggal menyalin atau membagikan tautan ini ke grup WhatsApp warga.
+                  Link web diambil otomatis saat aplikasi dibuka dari domain Vercel, atau Anda dapat menempelkan link Vercel Anda di bawah ini agar tersimpan untuk semua warga.
                 </p>
               </div>
 
+              {onSaveVercelUrl && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setIsSavingUrl(true);
+                    try {
+                      await onSaveVercelUrl(vercelInput);
+                      setUrlSavedSuccess(true);
+                      setTimeout(() => setUrlSavedSuccess(false), 3000);
+                    } finally {
+                      setIsSavingUrl(false);
+                    }
+                  }}
+                  className="space-y-1.5"
+                >
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    <Globe className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Atur Link Vercel Resmi</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      required
+                      value={vercelInput}
+                      onChange={(e) => setVercelInput(e.target.value)}
+                      placeholder="https://nama-project.vercel.app"
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 focus:border-sky-500 rounded-lg text-xs font-mono text-slate-800 outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSavingUrl}
+                      className="px-3 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg font-bold transition flex-shrink-0 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingUrl ? 'Simpan...' : 'Simpan'}
+                    </button>
+                  </div>
+                  {urlSavedSuccess && (
+                    <div className="text-[11px] font-semibold text-emerald-700">
+                      Link Vercel berhasil disimpan ke Cloud Firestore!
+                    </div>
+                  )}
+                </form>
+              )}
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Tautan Aplikasi
+                  Tautan Aplikasi Aktif (Untuk Dibagikan)
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -252,8 +312,9 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
                     className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-700 select-all outline-none"
                   />
                   <button
+                    type="button"
                     onClick={handleCopyLink}
-                    className="px-3 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg font-semibold flex items-center gap-1 transition flex-shrink-0"
+                    className="px-3 py-1.5 bg-sky-700 hover:bg-sky-800 text-white rounded-lg font-semibold flex items-center gap-1 transition flex-shrink-0 cursor-pointer"
                   >
                     {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedLink ? 'Tersalin' : 'Salin'}</span>
@@ -262,6 +323,7 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
               </div>
 
               <button
+                type="button"
                 onClick={handleShareWa}
                 className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition shadow-sm flex items-center justify-center gap-2 cursor-pointer"
               >
@@ -271,9 +333,37 @@ export const PengaturanModal: React.FC<PengaturanModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: DATABASE STATUS & RESET */}
+          {/* TAB 3: DATABASE, DOWNLOAD REKAPAN & RESET */}
           {activeTab === 'db' && (
             <div className="space-y-3">
+              {/* Download Data Hasil Rekapan */}
+              <div className="p-3 bg-sky-50/80 border border-sky-200 rounded-xl space-y-2">
+                <span className="font-bold text-sky-900 block">
+                  Download Data Hasil Rekapan:
+                </span>
+                <p className="text-[11px] text-sky-800">
+                  Unduh seluruh data rekapitulasi pemasangan meteran PDAM warga ke perangkat Anda.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={onExportCsv}
+                    className="py-2 px-3 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Excel / CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onExportTxt}
+                    className="py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Laporan .TXT</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                 <span className="font-bold text-slate-800 block">Koleksi Firestore:</span>
                 <div className="font-mono text-[11px] text-slate-600 space-y-0.5">

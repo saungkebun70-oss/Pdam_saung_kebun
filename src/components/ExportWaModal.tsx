@@ -97,7 +97,7 @@ export const ExportWaModal: React.FC<ExportWaModalProps> = ({
               <h4 className="font-bold text-slate-800 text-base leading-tight">
                 Salin Format WhatsApp (1–47)
               </h4>
-              <span className="text-[11px] text-slate-400">Siap Kirim ke Grup Paguyuban Warga</span>
+              <span className="text-[11px] text-slate-400">Siap Kirim ke Grup WhatsApp Warga</span>
             </div>
           </div>
           <button

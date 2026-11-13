@@ -175,26 +175,41 @@ export function subscribePdamRecords(
   );
 }
 
-// Subscribe to Admin PIN
-export function subscribeAdminPin(
-  onPin: (pin: string) => void,
+// Subscribe to Admin PIN & Web URL settings
+export function subscribeAdminSettings(
+  onSettings: (settings: { pin: string; vercelUrl: string }) => void,
   onError?: (err: Error) => void
 ) {
   const adminDoc = doc(db, 'settings', 'admin');
   return onSnapshot(
     adminDoc,
     (snap) => {
-      if (snap.exists() && snap.data().pin) {
-        onPin(snap.data().pin);
+      if (snap.exists()) {
+        const data = snap.data() || {};
+        onSettings({
+          pin: typeof data.pin === 'string' && data.pin.length === 6 ? data.pin : DEFAULT_ADMIN_PIN,
+          vercelUrl: typeof data.vercelUrl === 'string' ? data.vercelUrl.trim() : '',
+        });
       } else {
-        onPin(DEFAULT_ADMIN_PIN);
+        onSettings({ pin: DEFAULT_ADMIN_PIN, vercelUrl: '' });
       }
     },
     (err) => {
-      console.error('Admin PIN subscription error:', err);
+      console.error('Admin settings subscription error:', err);
       if (onError) onError(err);
-      onPin(DEFAULT_ADMIN_PIN);
+      onSettings({ pin: DEFAULT_ADMIN_PIN, vercelUrl: '' });
     }
+  );
+}
+
+// Backwards-compatible PIN subscription
+export function subscribeAdminPin(
+  onPin: (pin: string) => void,
+  onError?: (err: Error) => void
+) {
+  return subscribeAdminSettings(
+    (s) => onPin(s.pin),
+    onError
   );
 }
 
@@ -288,6 +303,39 @@ export async function updateAdminPin(newPin: string): Promise<void> {
       },
       { merge: true }
     );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, SETTINGS_ADMIN_DOC);
+    throw error;
+  }
+}
+
+// Save Vercel Web Link in settings/admin
+export async function updateVercelUrl(rawUrl: string, fallbackPin = DEFAULT_ADMIN_PIN): Promise<string> {
+  const trimmed = rawUrl.trim().replace(/\/+$/, '');
+  const normalized = trimmed
+    ? /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`
+    : '';
+
+  try {
+    const adminRef = doc(db, 'settings', 'admin');
+    const snap = await getDoc(adminRef);
+    const existingPin =
+      snap.exists() && typeof snap.data()?.pin === 'string' && snap.data()?.pin.length === 6
+        ? snap.data().pin
+        : fallbackPin;
+
+    await setDoc(
+      adminRef,
+      {
+        pin: existingPin,
+        vercelUrl: normalized.slice(0, 255),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+    return normalized;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, SETTINGS_ADMIN_DOC);
     throw error;

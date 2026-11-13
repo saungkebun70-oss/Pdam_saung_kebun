@@ -25,6 +25,7 @@ export interface PdamRecord {
 
 export interface AdminSettings {
   pin: string;
+  vercelUrl?: string;
   updatedAt?: string;
 }
 

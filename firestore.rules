@@ -12,7 +12,8 @@ service cloud.firestore {
 
     // Helper for Admin Settings
     function isValidAdminSettings(data) {
-      return data.pin is string && data.pin.size() == 6 && data.pin.matches('^[0-9]{6}$');
+      return data.pin is string && data.pin.size() == 6 && data.pin.matches('^[0-9]{6}$') &&
+             (!('vercelUrl' in data) || (data.vercelUrl is string && data.vercelUrl.size() <= 255));
     }
 
     // Koleksi PDAM Saung Kebun

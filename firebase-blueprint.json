@@ -45,6 +45,10 @@
           "maxLength": 6,
           "pattern": "^[0-9]{6}$"
         },
+        "vercelUrl": {
+          "type": "string",
+          "maxLength": 255
+        },
         "updatedAt": {
           "type": "string"
         }

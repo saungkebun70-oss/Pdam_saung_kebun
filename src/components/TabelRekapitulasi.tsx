@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  Download,
 } from 'lucide-react';
 import { PdamRecord, StatusPemasangan } from '../types';
 import { EditRecordModal } from './EditRecordModal';
@@ -30,6 +31,7 @@ interface TabelRekapitulasiProps {
   onRequestReset: () => void;
   onOpenExportWa: () => void;
   onExportCsv: () => void;
+  onExportTxt?: () => void;
   isAdminUnlocked: boolean;
 }
 
@@ -69,6 +71,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
   onRequestReset,
   onOpenExportWa,
   onExportCsv,
+  onExportTxt,
   isAdminUnlocked,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -214,7 +217,7 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
           </p>
         </div>
 
-        {/* Action Buttons: WA, CSV, Reset */}
+        {/* Action Buttons: WA, Download (Hanya tampil jika Mode Pengurus dibuka), Reset */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onOpenExportWa}
@@ -224,13 +227,27 @@ export const TabelRekapitulasi: React.FC<TabelRekapitulasiProps> = ({
             <span>Salin Format WA (1–47)</span>
           </button>
 
-          <button
-            onClick={onExportCsv}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition shadow-xs cursor-pointer"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-sky-600" />
-            <span>Export Excel / CSV</span>
-          </button>
+          {isAdminUnlocked && (
+            <div key="table-unlocked-downloads" className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={onExportCsv}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-xl transition shadow-xs cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-sky-600" />
+                <span>Download Excel / CSV</span>
+              </button>
+
+              {onExportTxt && (
+                <button
+                  onClick={onExportTxt}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition shadow-xs cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-indigo-600" />
+                  <span>Download Rekap .TXT</span>
+                </button>
+              )}
+            </div>
+          )}
 
           <button
             onClick={onRequestReset}
